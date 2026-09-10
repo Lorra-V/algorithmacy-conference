@@ -1,5 +1,5 @@
 {
-  "count": 7,
+  "count": 8,
   "papers": [
     {
       "slug": "a",
@@ -54,6 +54,25 @@
       ],
       "teaser": "The content creator economy stages an unusual labour relation as they produce a novel figure of the worker, one that is constantly disciplined but never informed.",
       "url": "https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference/blob/main/submissions/khurana.md"
+    },
+    {
+      "slug": "london",
+      "title": "Learning to Comply: Algorithmic Mediation as the Hidden Curriculum",
+      "authors": "Mahmudur Rahman [King's College London]",
+      "type": "Note",
+      "trackId": "TR.05",
+      "track": "TR.05 — Methods, Lineage & Practice",
+      "keywords": [
+        "algorithmic literacy",
+        "assessment",
+        "hidden curriculum",
+        "bureaucracy",
+        "educational technology",
+        "Ofqual",
+        "accountability"
+      ],
+      "teaser": "Education is where most people first coordinate with another human through an algorithmic third party, and it is where the terms of that coordination are learned without ever…",
+      "url": "https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference/blob/main/submissions/london.md"
     },
     {
       "slug": "mcewen",
