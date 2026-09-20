@@ -16,7 +16,7 @@ La Brea Pitch Lake is the world's largest natural deposit of asphalt — an opaq
 
 - Venue: Port of Spain, Trinidad & Tobago (approximately 30 minutes by road from Piarco International Airport; the Saturday field day travels ~90 minutes south to La Brea Pitch Lake)
 - Dates: October 28–31, 2026 (Wednesday–Saturday)
-- Hosted by the Caribbean Emergence Institute in partnership with Anime Caribe (Trinidad)
+- Hosted by the Caribbean Emergence Institute in partnership with Animae Caribe (Trinidad)
 - Sponsors: the Rose Foundation, the Caribbean Emergence Initiative, and Hult International Business School (Boston)
 
 ## Program
@@ -76,6 +76,7 @@ The home page hosts an interactive "algorithmacy tester": a deck of 10,000 short
 
 ## Featured speakers
 
+- Sarah Witmer — Digital cultures, University of Iowa — https://www.linkedin.com/in/sarahwitmer/. Chairs the Critical Cultural Research special session.
 - Dr. Uohna Thiessen — AI/ML Strategist & Educator; Strategic AI Advisor, Break Through Tech AI (Cornell Tech) — https://www.linkedin.com/in/druohna-datascientist/. Chairs the Algorithmic Literacy special session.
 
 Ten featured-speaker slots run across the program; more speakers are being announced. To be considered as a featured speaker, email rhunt@bentley.edu with your work and its fit.
@@ -84,6 +85,7 @@ Ten featured-speaker slots run across the program; more speakers are being annou
 
 - Digital Sovereignty — chaired by Samuel Fosso Wamba (Information Systems & Data Science, TBS Education); accepting submissions.
 - Algorithmic Literacy — chaired by Dr. Uohna Thiessen (Break Through Tech AI, Cornell Tech); treats everyday data and AI literacy as the coordination competency for algorithmically mediated work; accepting submissions.
+- Critical Cultural Research — chaired by Sarah Witmer (Digital cultures, University of Iowa); brings algorithmacy into critical cultural research on AI, apps, websites, and platform media, naming the algorithm as an actor in cultural dynamics; accepting submissions.
 
 Further special-session slots are open. Propose a themed session and serve as its committee chair by emailing rhunt@bentley.edu.
 

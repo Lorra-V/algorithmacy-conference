@@ -1,6 +1,79 @@
 {
-  "count": 2,
+  "count": 9,
   "papers": [
+    {
+      "slug": "a",
+      "title": "Navigating the Crisis of Information: Digital Literacy, Governance, and Infrastructures in India",
+      "authors": "Ananthu R A (Indian Institute of Technology Delhi)",
+      "type": "Full paper",
+      "trackId": "TR.04",
+      "track": "TR.04 — Trust, Opacity & Governance",
+      "keywords": [
+        "literacy",
+        "information",
+        "infrastructures",
+        "trust",
+        "libraries"
+      ],
+      "teaser": "Media and Information Literacy (MIL) programs treat disinformation as individual deficiency correctable through education, but this paper argues they function instead as…",
+      "url": "https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference/blob/main/submissions/a.md"
+    },
+    {
+      "slug": "ii",
+      "title": "Humanized AI and Algorithmic Coordination in Healthcare Practice",
+      "authors": "Phillip M. Rowell II, Chief Analytics Officer, Health Catalyst",
+      "type": "Practitioner report",
+      "trackId": "TR.04",
+      "track": "TR.04 — Trust, Opacity & Governance",
+      "keywords": [
+        "algorithmacy",
+        "humanized AI",
+        "algorithmic accountability",
+        "healthcare analytics",
+        "human-in-the-loop",
+        "governance",
+        "platform mediation"
+      ],
+      "teaser": "Algorithmic systems now quietly coordinate clinical and operational decisions across modern health systems, from triage prioritization to staffing, discharge planning, and…",
+      "url": "https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference/blob/main/submissions/ii.md"
+    },
+    {
+      "slug": "khurana",
+      "title": "Ghosted by the Feed: Platform Labour and the Politics of Algorithmic Visibility",
+      "authors": "Disha Khurana (IIT Mandi; Government of Punjab)",
+      "type": "Full paper",
+      "trackId": "TR.02",
+      "track": "TR.02 — Algorithmic Management",
+      "keywords": [
+        "Algorithmic Violence",
+        "Platform Labour",
+        "Content Creators",
+        "Collective Action",
+        "Engagement pods",
+        "Creativity Paradox"
+      ],
+      "teaser": "The content creator economy stages an unusual labour relation as they produce a novel figure of the worker, one that is constantly disciplined but never informed.",
+      "url": "https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference/blob/main/submissions/khurana.md"
+    },
+    {
+      "slug": "london",
+      "title": "Learning to Comply: Algorithmic Mediation as the Hidden Curriculum",
+      "authors": "Mahmudur Rahman [King's College London]",
+      "type": "Note",
+      "trackId": "TR.05",
+      "track": "TR.05 — Methods, Lineage & Practice",
+      "keywords": [
+        "algorithmic literacy",
+        "assessment",
+        "hidden curriculum",
+        "bureaucracy",
+        "educational technology",
+        "Ofqual",
+        "accountability"
+      ],
+      "teaser": "Education is where most people first coordinate with another human through an algorithmic third party, and it is where the terms of that coordination are learned without ever…",
+      "url": "https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference/blob/main/submissions/london.md"
+    },
     {
       "slug": "mcewen",
       "title": "AI Without Enterprise Infrastructure: Agentic Systems for Small Biotech Development Teams",
@@ -32,6 +105,60 @@
       ],
       "teaser": "AI agents increasingly promise to act across software environments, but their practical value depends less on model autonomy than on the substrate that lets them move safely.",
       "url": "https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference/blob/main/submissions/meleantonio.md"
+    },
+    {
+      "slug": "phd",
+      "title": "From Sediment to Algorithm: Rethinking Environmental Governance through Algorithmacy in South Africa's Breede River Catchment",
+      "authors": "Mistancia Kanengoni - PhD (University of Cape Town), South Africa",
+      "type": "Full paper",
+      "trackId": "TR.02",
+      "track": "TR.02 — Algorithmic Management",
+      "keywords": [
+        "Algorithmacy",
+        "Environmental Governance",
+        "Environmental Humanities",
+        "Political Ecology",
+        "Science and Technology Studies (STS)",
+        "Algorithmic Mediation",
+        "Social Life of Sediments"
+      ],
+      "teaser": "From Sediment to Algorithm: Rethinking Environmental Governance through Algorithmacy in South Africa's Breede River Catchment",
+      "url": "https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference/blob/main/submissions/phd.md"
+    },
+    {
+      "slug": "wesley83",
+      "title": "Automation From the Bottom Up: How Skill-Matched Task Routing Makes AI Adoption Worker-Led",
+      "authors": "Wesley Faulkner (Work Evolution Framework LLC)",
+      "type": "Practitioner report",
+      "trackId": "TR.04",
+      "track": "TR.04 — Trust, Opacity & Governance",
+      "keywords": [
+        "skill-based matching",
+        "decision routing",
+        "algorithmic management",
+        "automation dividend",
+        "auditability",
+        "worker-led adoption"
+      ],
+      "teaser": "Most organizations adopt AI the way they run everything else: leadership picks the tool, mandates the rollout, and measures compliance.",
+      "url": "https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference/blob/main/submissions/wesley83.md"
+    },
+    {
+      "slug": "whyte",
+      "title": "Ethical Use of AI in Character Animation",
+      "authors": "Chevonnese Chevers Whyte (University of the West Indies), Kevin Jackson (University of the West Indies), and Robert Patmore (May Day High School)",
+      "type": "Note",
+      "trackId": "TR.04",
+      "track": "TR.04 — Trust, Opacity & Governance",
+      "keywords": [
+        "Artificial Intelligence",
+        "Character Animation",
+        "Human–AI Coordination",
+        "AI Ethics",
+        "Global South"
+      ],
+      "teaser": "The rapid development of Artificial Intelligence (AI) is transforming the character animation production pipeline, creating opportunities to reduce production time, automate…",
+      "url": "https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference/blob/main/submissions/whyte.md"
     }
   ]
 }
