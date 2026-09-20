@@ -1,5 +1,5 @@
 // Partner deck modal. Any element with [data-open-partner] opens it and shows
-// the Anime Caribe AC26 concept pitch deck (PDF) in an embedded viewer.
+// the Animae Caribe AC26 concept pitch deck (PDF) in an embedded viewer.
 
 (function () {
   const modal = document.getElementById('partner-modal');
