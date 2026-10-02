@@ -44,24 +44,24 @@
   .sec-head h2{ margin: 0; font-size: clamp(24px,2.8vw,36px); font-weight: 600; letter-spacing: -.024em; color: var(--ink); }
   .sec-head .meta{ font-family: var(--font-mono); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
 
-  .sched-grid{ display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
-  .day{ border-radius: 12px; overflow: hidden; position: relative; }
-  .day-gradient-border{ height: 3px; background: linear-gradient(90deg, #C7A8FF 0%, #FF9EC8 25%, #FFD4A3 50%, #A8FFD4 75%, #C7A8FF 100%); }
-  .day--lavender .day-inner{ background: linear-gradient(135deg, rgba(213, 196, 255, 0.12) 0%, rgba(213, 196, 255, 0.04) 100%); }
-  .day--pink .day-inner{ background: linear-gradient(135deg, rgba(255, 182, 213, 0.12) 0%, rgba(255, 182, 213, 0.04) 100%); }
-  .day--peach .day-inner{ background: linear-gradient(135deg, rgba(255, 213, 163, 0.12) 0%, rgba(255, 213, 163, 0.04) 100%); }
-  .day--mint .day-inner{ background: linear-gradient(135deg, rgba(168, 255, 212, 0.12) 0%, rgba(168, 255, 212, 0.04) 100%); }
-  .day-inner{ padding: clamp(18px,2vw,24px); display: flex; flex-direction: column; gap: 12px; }
+  .sched-grid{ display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; align-items: stretch; }
+  .day{ border-radius: 12px; overflow: hidden; position: relative; height: 100%; box-sizing: border-box; opacity: 1; }
+  .day-gradient-border{ height: 3px; background: linear-gradient(90deg, #5A9BFF 0%, #9D7FF5 33%, #FF7B94 66%, #FFBF66 100%); }
+  .day--lavender .day-inner{ background: linear-gradient(135deg, #D5E8FF 0%, #E9DDF8 100%); }
+  .day--pink .day-inner{ background: linear-gradient(135deg, #E4DFFB 0%, #FBE1E8 100%); }
+  .day--peach .day-inner{ background: linear-gradient(135deg, #FBE1E8 0%, #FFF0D8 100%); }
+  .day--mint .day-inner{ background: linear-gradient(135deg, #DDF5EE 0%, #D4E8FF 100%); }
+  .day-inner{ padding: clamp(18px,2vw,24px); display: flex; flex-direction: column; gap: 12px; height: 100%; box-sizing: border-box; }
   .day-badge{ 
     align-self: flex-start; font-family: var(--font-mono); font-size: 10px; letter-spacing: .2em; 
-    color: var(--cool); background: rgba(27, 39, 53, 0.92); 
+    color: #D5E8FF; background: #14213D; 
     padding: 5px 12px; border-radius: 999px; font-weight: 500;
   }
-  .day h3{ margin: 4px 0 0; font-size: clamp(18px,1.6vw,21px); font-weight: 700; color: var(--ink); letter-spacing: -.01em; }
-  .day p{ margin: 0; color: var(--ink-soft); font-size: 14px; line-height: 1.55; }
+  .day h3{ margin: 4px 0 0; font-size: clamp(18px,1.6vw,21px); font-weight: 700; color: #14213D; letter-spacing: -.01em; }
+  .day p{ margin: 0; color: #14213D; font-size: 14px; line-height: 1.55; }
   .day ul{ margin: 8px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
-  .day li{ font-family: var(--font-sans); font-size: 12.5px; color: var(--ink); display: flex; gap: 9px; line-height: 1.5; }
-  .day li::before{ content: ""; width: 0; height: 0; border-left: 5px solid var(--cool); border-top: 3px solid transparent; border-bottom: 3px solid transparent; margin-top: 5px; flex-shrink: 0; }
+  .day li{ font-family: var(--font-sans); font-size: 12.5px; color: #14213D; display: flex; gap: 9px; line-height: 1.5; }
+  .day li::before{ content: "▸"; color: #5A9BFF; width: auto; height: auto; border: none; margin-top: 0; }
 
   .kgrid{ display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
   .kcard{ 
