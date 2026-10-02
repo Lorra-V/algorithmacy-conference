@@ -74,6 +74,7 @@ const speakerData = {
 };
 
 const modal = document.getElementById('speaker-modal');
+const modalPanel = modal.querySelector('.speaker-modal__panel');
 const modalPhoto = document.getElementById('modal-photo');
 const modalName = document.getElementById('modal-name');
 const modalTitle = document.getElementById('modal-title');
@@ -99,6 +100,7 @@ function openSpeakerModal(speakerId) {
   // Show modal
   modal.classList.add('is-open');
   modal.setAttribute('aria-hidden', 'false');
+  modalPanel.removeAttribute('inert');
   document.body.classList.add('speaker-modal-open');
 
   // Store last focused element
@@ -115,6 +117,7 @@ function openSpeakerModal(speakerId) {
 function closeSpeakerModal() {
   modal.classList.remove('is-open');
   modal.setAttribute('aria-hidden', 'true');
+  modalPanel.setAttribute('inert', '');
   document.body.classList.remove('speaker-modal-open');
 
   // Restore focus

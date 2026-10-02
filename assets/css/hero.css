@@ -19,6 +19,9 @@
     gap: clamp(20px, 2.2vw, 32px);
     min-width: 0;
   }
+  .copy.copy--full-width{
+    max-width: 100%;
+  }
   .eyebrow{
     display: flex; align-items: center; gap: 14px;
     font-family: var(--font-mono);
@@ -72,6 +75,15 @@
     font-style: normal;
     font-weight: 600;
     border-bottom: 1px solid var(--ink-faint);
+  }
+
+  /* hero navigation buttons */
+  .hero-nav-buttons{
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: clamp(20px, 2.4vw, 32px) 0;
+    border-bottom: 1px solid var(--line);
   }
 
   /* diagram block — sits below the copy */
