@@ -59,27 +59,89 @@
   .day li.kbadge{ color: var(--ink); font-weight: 500; }
 
   .kgrid{ display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
-  .kcard{ border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.02); padding: clamp(16px,1.6vw,20px); display: flex; flex-direction: column; gap: 10px; min-height: 200px; }
-  .kcard .knum{ font-family: var(--font-mono); font-size: 10px; letter-spacing: .2em; color: var(--ink-faint); line-height: 1.4; }
-  /* headshot: layered background — photo on top, Algorithmacy logo mark beneath.
-     If the photo file is missing/404s (or no --photo is set), that layer silently
-     doesn't paint and the logo shows through (no broken-image icon). Set --photo per card. */
+  .kcard{ 
+    border: 2px solid var(--cool); 
+    border-radius: 12px; 
+    background: var(--pitch-raised); 
+    padding: 0;
+    display: flex; 
+    flex-direction: column; 
+    overflow: hidden;
+    position: relative;
+    transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+  }
+  .kcard.is-clickable{
+    cursor: pointer;
+  }
+  .kcard.is-clickable:hover{
+    transform: translateY(-2px);
+    border-color: var(--signal);
+    box-shadow: 0 8px 24px rgba(90, 155, 255, 0.15);
+  }
+  .kcard.is-clickable:focus-visible{
+    outline: 2px solid var(--cool);
+    outline-offset: 2px;
+  }
+  .kcard-gradient-top{
+    height: 4px;
+    background: linear-gradient(90deg, var(--cool) 0%, #B865FF 50%, var(--ember) 100%);
+  }
+  .kcard-inner{
+    padding: clamp(16px,1.6vw,20px);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+  }
+  .kcard .knum{ 
+    font-family: var(--font-mono); 
+    font-size: 10px; 
+    letter-spacing: .22em; 
+    color: var(--cool); 
+    line-height: 1.4;
+    text-transform: uppercase;
+  }
   .kface{
-    width: 48px; height: 48px; border-radius: 8px; border: 1px solid var(--line-strong);
-    background-color: rgba(255,89,69,.07);
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 10px;
+    background-color: var(--pitch-2);
     background-image: var(--photo, none),
       url('/images/logo-mark.svg');
-    background-size: cover, 60%;
+    background-size: cover, 40%;
     background-position: center, center;
     background-repeat: no-repeat, no-repeat;
+    border: 1px solid var(--line-strong);
   }
   .kcard-cta{ border-color: rgba(255,89,69,.4); background: rgba(255,89,69,.05); }
   .kmail{ margin-top: 4px; font-family: var(--font-mono); font-size: 12px; letter-spacing: .04em; color: var(--signal); text-decoration: none; }
   .kmail:hover{ text-decoration: underline; text-underline-offset: 3px; }
-  .kcard .kname{ margin: auto 0 0; color: var(--ink); font-weight: 600; font-size: 16px; text-decoration: none; }
-  a.kname:hover{ text-decoration: underline; text-decoration-color: var(--signal); text-underline-offset: 3px; }
-  .kcard .kaff{ font-family: var(--font-mono); font-size: 11px; color: var(--ink-soft); letter-spacing: .04em; line-height: 1.45; min-height: 2.9em; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
-  .kcard .ktopic{ font-size: 13px; color: var(--ink); line-height: 1.5; margin-top: 6px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+  .kcard .kname{ 
+    color: var(--ink); 
+    font-weight: 700; 
+    font-size: 18px;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+  .kcard .kaff{ 
+    font-family: var(--font-mono); 
+    font-size: 11px; 
+    color: var(--ink-soft); 
+    letter-spacing: .03em; 
+    line-height: 1.5;
+  }
+  .kcard-gradient-divider{
+    height: 2px;
+    background: linear-gradient(90deg, var(--cool) 0%, #B865FF 50%, var(--ember) 100%);
+    border-radius: 1px;
+    margin: 4px 0;
+  }
+  .kcard .ktopic{ 
+    font-size: 14px; 
+    color: var(--ink); 
+    line-height: 1.5;
+    font-weight: 500;
+  }
   .kcard .ktba{ align-self: flex-start; font-family: var(--font-mono); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--signal); border: 1px dashed rgba(255,89,69,.4); padding: 3px 8px; border-radius: 4px; }
   .kcard .kds{ align-self: flex-start; font-family: var(--font-mono); font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--signal); background: rgba(255,89,69,.08); border: 1px solid rgba(255,89,69,.3); padding: 4px 8px; border-radius: 4px; }
 
