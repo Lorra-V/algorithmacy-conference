@@ -74,7 +74,7 @@ const speakerData = {
   'mellissa-lezama': {
     name: 'Mellissa Lezama',
     title: 'Founder and CEO of The HR Horizon',
-    bio: 'Mellissa Lezama is Founder and CEO of The HR Horizon, an HR consultancy and employment-law specialist serving startups and SMEs. Her topic explores how emerging organizations can use AI and modern HR technology to leapfrog legacy problems.',
+    bio: 'Mellissa Lezama, Founder and CEO of The HR Horizon, is an attorney and global HR specialist helping organisations navigate people, technology, employment law and AI-driven workplace change responsibly.',
     photo: '/images/speakers/mellissa-lezama.png',
     linkedin: 'https://www.linkedin.com/in/mellissa-lezama'
   }
