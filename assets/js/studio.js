@@ -156,9 +156,13 @@
   }
   function writeRoi() {
     if (!roi || !roiOut) return;
-    var people = Number(document.getElementById("roi-people").value);
-    var hours = Number(document.getElementById("roi-hours").value);
-    var rate = Number(document.getElementById("roi-rate").value);
+    function read(id) {
+      var raw = document.getElementById(id).value.trim();
+      return raw === "" ? NaN : Number(raw);
+    }
+    var people = read("roi-people");
+    var hours = read("roi-hours");
+    var rate = read("roi-rate");
     if (![people, hours, rate].every(function (n) { return Number.isFinite(n) && n >= 0; }) || people < 1) {
       roiOut.textContent = "Enter the people, the hours, and the value of an hour.";
       return;

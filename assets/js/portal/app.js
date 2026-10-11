@@ -51,7 +51,7 @@ async function renderLogin() {
     '<header class="portal-top"><a class="portal-brand" href="/studio">Algorithmacy Studio</a>' +
     '<nav class="portal-nav"><a href="/studio">The offer</a><a href="/book/">Book a call</a></nav></header>' +
     '<h1>Sign in.</h1>' +
-    (cfg.configured ? '' : '<p class="error">Sign-in is not open yet. Write to roger@algorithmacy.org.</p>') +
+    (cfg.configured ? '' : '<p class="error">Sign-in is not open yet. Write to topanga@algorithmacy.org.</p>') +
     '<form class="stack" id="login-form" style="max-width:420px">' +
     '<label class="field"><span>Email</span><input type="email" name="email" required autocomplete="email" value="' + esc(email) + '"></label>' +
     '<p class="book-hp" hidden><input name="website" tabindex="-1" autocomplete="off"></p>' +
@@ -126,7 +126,7 @@ async function renderFinish() {
 async function session() {
   const auth = await getAuth();
   if (!auth) {
-    root.innerHTML = '<h1>Sign-in is not open yet.</h1><p class="muted">Write to roger@algorithmacy.org.</p>';
+    root.innerHTML = '<h1>Sign-in is not open yet.</h1><p class="muted">Write to topanga@algorithmacy.org.</p>';
     return null;
   }
   const user = await waitForUser(auth);
@@ -138,13 +138,19 @@ async function session() {
   return me;
 }
 
-function noAccount(main) {
+function noAccount(main, me) {
+  if (me && me.user && me.user.isAdmin) {
+    main.innerHTML =
+      '<p class="lede">You are signed in as the engineer. This address is not on a client account, so the client pages are empty. The work is on the admin pages.</p>' +
+      '<p><a class="btn" href="/portal/admin/">Accounts and leads</a> <a class="btn" href="/portal/admin/availability/">Availability</a></p>';
+    return;
+  }
   main.innerHTML = '<p class="lede">No account for this address yet. Book a call, and we will invite you after it.</p><p><a class="btn" href="/book/">Book a 20-minute call</a></p>';
 }
 
 async function renderDashboard(me) {
   const main = shell(me.user, me.account ? me.account.office : 'Studio');
-  if (!me.account) return noAccount(main);
+  if (!me.account) return noAccount(main, me);
   const data = await api('home');
   const upcoming = data.upcoming
     ? '<p>' + esc(data.upcoming.when) + '</p><p class="muted">' + esc(data.upcoming.type) + '</p>'
@@ -169,7 +175,7 @@ async function renderDashboard(me) {
 
 async function renderActivity(me) {
   const main = shell(me.user, 'Activity');
-  if (!me.account) return noAccount(main);
+  if (!me.account) return noAccount(main, me);
   async function load() {
     const type = document.getElementById('filter-type').value;
     const agent = document.getElementById('filter-agent').value;
@@ -199,7 +205,7 @@ async function renderActivity(me) {
 
 async function renderAgents(me) {
   const main = shell(me.user, 'Agents');
-  if (!me.account) return noAccount(main);
+  if (!me.account) return noAccount(main, me);
   const data = await api('agents');
   main.innerHTML = '<ul class="list">' + ((data.agents || []).map(function (a) {
     return '<li><strong>' + esc(a.name) + '</strong><p>' + esc(a.chore) + '</p><p class="muted">' + esc(a.status) + (a.last4 ? ' · key ···' + esc(a.last4) : '') + '</p></li>';
@@ -208,7 +214,7 @@ async function renderAgents(me) {
 
 async function renderApprovals(me) {
   const main = shell(me.user, 'Approvals');
-  if (!me.account) return noAccount(main);
+  if (!me.account) return noAccount(main, me);
   const data = await api('approvals');
   const items = data.approvals || [];
   main.innerHTML = items.length ? '<ul class="list" id="approvals"></ul>' : '<p class="empty muted">Nothing is waiting on you.</p>';
@@ -236,7 +242,7 @@ async function renderApprovals(me) {
 
 async function renderRequests(me) {
   const main = shell(me.user, 'What should change');
-  if (!me.account) return noAccount(main);
+  if (!me.account) return noAccount(main, me);
   const data = await api('requests');
   main.innerHTML =
     '<form id="request-form"><label class="field"><span>The change</span><input name="summary" required maxlength="500" placeholder="Stop the review replies. Keep the document chase."></label><button class="btn" type="submit">Send</button><p class="error" id="request-error" hidden></p></form>' +
@@ -275,7 +281,7 @@ function slotButtons(slots, timeZone, onPick) {
 
 async function renderMeetings(me) {
   const main = shell(me.user, 'Meetings');
-  if (!me.account) return noAccount(main);
+  if (!me.account) return noAccount(main, me);
   const data = await api('meetings');
   main.innerHTML =
     '<ul class="list">' + (data.meetings || []).map(function (m) {
@@ -326,7 +332,7 @@ async function renderMeetings(me) {
 
 async function renderBilling(me) {
   const main = shell(me.user, 'Billing');
-  if (!me.account) return noAccount(main);
+  if (!me.account) return noAccount(main, me);
   const status = new URLSearchParams(location.search).get('status');
   const banner = status === 'success'
     ? '<p>Payment received. The account updates when Stripe confirms it.</p>'
@@ -360,7 +366,7 @@ async function renderBilling(me) {
 
 async function renderAccount(me) {
   const main = shell(me.user, 'Account');
-  if (!me.account) return noAccount(main);
+  if (!me.account) return noAccount(main, me);
   const owner = me.account.role === 'owner';
   const meMember = (me.account.members || []).find(function (m) { return m.email === me.user.email; });
   main.innerHTML =
@@ -399,7 +405,7 @@ async function renderAccount(me) {
 
 async function renderReports(me) {
   const main = shell(me.user, 'Reports');
-  if (!me.account) return noAccount(main);
+  if (!me.account) return noAccount(main, me);
   const month = new URLSearchParams(location.search).get('month') || '';
   const data = await api('reports');
   const reports = data.reports || [];
@@ -424,12 +430,16 @@ async function renderAdmin(me) {
     '<label class="field"><span>Owner name</span><input name="name" required></label>' +
     '<label class="field"><span>Owner email</span><input type="email" name="email" required></label>' +
     '<button class="btn" type="submit">Create and invite</button><p class="error" id="admin-error" hidden></p></form>' +
-    '<h2>Accounts</h2><ul class="list">' + (data.accounts || []).map(function (a) {
-      return '<li><a href="/portal/admin/account/?id=' + esc(a.id) + '">' + esc(a.office) + '</a><p class="muted">' + esc(a.kind) + ' · ' + esc(a.status) + ' · ' + esc(a.billingStatus || 'none') + '</p></li>';
-    }).join('') + '</ul>' +
-    '<h2>Leads</h2><ul class="list">' + (data.leads || []).map(function (l) {
-      return '<li>' + esc(l.name) + ' · ' + esc(l.email) + '<p>' + esc(l.business || '') + ' · ' + esc(l.chore || l.intent || '') + '</p></li>';
-    }).join('') + '</ul>' +
+    '<h2>Accounts</h2>' + ((data.accounts || []).length
+      ? '<ul class="list">' + data.accounts.map(function (a) {
+          return '<li><a href="/portal/admin/account/?id=' + esc(a.id) + '">' + esc(a.office) + '</a><p class="muted">' + esc(a.kind) + '. ' + esc(a.status) + '. Billing ' + esc(a.billingStatus || 'not started') + '.</p></li>';
+        }).join('') + '</ul>'
+      : '<p class="muted">No accounts yet. The first one is created with the form above, after a call.</p>') +
+    '<h2>Leads</h2>' + ((data.leads || []).length
+      ? '<ul class="list">' + data.leads.map(function (l) {
+          return '<li>' + esc(l.name) + ', ' + esc(l.email) + '<p class="muted">' + esc(l.business || '') + (l.chore || l.intent ? '. ' + esc(l.chore || l.intent) : '') + (l.source ? '. From the ' + esc(l.source === 'book' ? 'calendar' : 'form') : '') + '</p></li>';
+        }).join('') + '</ul>'
+      : '<p class="muted">No leads yet. Inquiries from the Studio form and bookings from the calendar appear here.</p>') +
     '<p><a href="/portal/admin/availability/">Availability</a></p>';
   document.getElementById('new-account').addEventListener('submit', async function (event) {
     event.preventDefault();
@@ -543,7 +553,7 @@ async function renderAvailability(me) {
     '<label class="field"><span>Monthly, minutes</span><input name="monthly" type="number" min="10" max="180" value="' + esc(a.durations.monthly) + '"></label>' +
     days.map(function (name, i) {
       const w = byDay[i] || { start: '', end: '' };
-      return '<label class="field"><span>' + name + '</span><span class="row"><input name="start-' + i + '" value="' + esc(w.start) + '" placeholder="10:00"> <input name="end-' + i + '" value="' + esc(w.end) + '" placeholder="16:00"></span></label>';
+      return '<label class="field"><span>' + name + (w.start ? '' : ' (closed)') + '</span><span class="row"><input name="start-' + i + '" value="' + esc(w.start) + '" placeholder="closed" aria-label="' + name + ' start"> <input name="end-' + i + '" value="' + esc(w.end) + '" placeholder="closed" aria-label="' + name + ' end"></span></label>';
     }).join('') +
     '<label class="field"><span>Closed dates, one YYYY-MM-DD per line</span><textarea name="closed" rows="4">' +
     esc((a.exceptions || []).filter(function (e) { return e.closed; }).map(function (e) { return e.date; }).join('\n')) +

@@ -79,7 +79,7 @@
       <h2>The Studio portal.</h2>
     </div>
     <p>
-      Clients of the Studio engagement can sign in at <a href="/portal/">/portal</a>. Sign-in is by an email link, or with Google, through <b>Firebase Authentication</b> on the cursor-boston project. We keep the account that was invited: the office name, the kind of office, the email addresses of the people on it, meetings, the record of what the agents did, approvals, and the changes you asked for. A booking from <a href="/book/">/book</a> stores your name, email, business, the time, and an optional note, and emails you and Roger through Mailgun, with a calendar file attached.
+      Clients of the Studio engagement can sign in at <a href="/portal/">/portal</a>. Sign-in is by an email link, or with Google, through <b>Firebase Authentication</b> on the cursor-boston project. We keep the account that was invited: the office name, the kind of office, the email addresses of the people on it, meetings, the record of what the agents did (including the drafts they wrote and who approved them), approvals, and the changes you asked for. Client files themselves stay in the office’s own systems and are not copied to the portal. A booking from <a href="/book/">/book</a> stores your name, email, business, the time, and an optional note, and emails you and Roger through Mailgun, with a calendar file attached.
     </p>
     <p>
       Payment, when an engagement goes ahead, is taken by <b>Stripe</b>. We store Stripe’s customer and subscription ids so the portal can show whether the monthly charge is on. Card numbers stay with Stripe. Stripe’s notice applies to the payment page.

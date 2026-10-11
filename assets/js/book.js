@@ -22,6 +22,21 @@ function timeLabel(iso, timeZone) {
   }).format(new Date(iso));
 }
 
+function zoneLabel(iso, timeZone) {
+  var parts = new Intl.DateTimeFormat('en-US', { timeZone: timeZone, timeZoneName: 'short' }).formatToParts(new Date(iso));
+  var name = parts.filter(function (p) { return p.type === 'timeZoneName'; })[0];
+  return name ? name.value : timeZone;
+}
+
+function zoneNote(iso, timeZone) {
+  var local = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  var text = 'Times are ' + zoneLabel(iso, timeZone) + ' (' + timeZone.replace(/_/g, ' ') + ').';
+  if (local && local !== timeZone) {
+    text += ' In your time zone, ' + timeLabel(iso, timeZone) + ' ' + zoneLabel(iso, timeZone) + ' is ' + timeLabel(iso, local) + ' ' + zoneLabel(iso, local) + '.';
+  }
+  return text;
+}
+
 var CLOSED = 'The calendar is not open yet. Use the form, or write to topanga@algorithmacy.org.';
 
 function readJson(res) {
@@ -85,6 +100,7 @@ function draw(root, data) {
   function render() {
     var day = days.filter(function (d) { return d.key === pickedDay; })[0] || days[0];
     root.innerHTML =
+      '<p class="book-note">Pick a day, then a time. ' + esc(zoneNote((picked || day.slots[0]).start, data.timeZone)) + '</p>' +
       '<div class="book-days" role="group" aria-label="Days"></div>' +
       '<div class="book-times" role="group" aria-label="Times"></div>' +
       '<div class="book-form-slot"></div>';
@@ -122,7 +138,7 @@ function draw(root, data) {
     });
     var formSlot = root.querySelector('.book-form-slot');
     if (!picked) {
-      formSlot.innerHTML = '<p class="book-note">Pick a time. The call is 20 minutes.</p>';
+      formSlot.innerHTML = '<p class="book-note">The call is 20 minutes.</p>';
       return;
     }
     formSlot.innerHTML =
@@ -133,7 +149,7 @@ function draw(root, data) {
       '<label class="wide">What you want to talk about<input name="note" placeholder="Intake, follow-ups, chasing documents"></label>' +
       '<p class="book-hp" aria-hidden="true"><label>Leave empty<input name="website" tabindex="-1" autocomplete="off"></label></p>' +
       '<p class="book-error" hidden></p>' +
-      '<button type="submit">Book ' + esc(timeLabel(picked.start, data.timeZone)) + '</button>' +
+      '<button type="submit">Book ' + esc(dayLabel(picked.start, data.timeZone)) + ' at ' + esc(timeLabel(picked.start, data.timeZone)) + ' ' + esc(zoneLabel(picked.start, data.timeZone)) + '</button>' +
       '</form>';
     var form = formSlot.querySelector('form');
     form.addEventListener('submit', function (event) {
@@ -215,7 +231,8 @@ function show(root, token, meeting) {
     slot.innerHTML = '<p class="book-note">Loading times.</p>';
     post({ action: 'slots', token: token }).then(function (data) {
       var days = group(data.slots || [], data.timeZone);
-      slot.innerHTML = '<div class="book-times"></div>';
+      if (!days.length) { slot.innerHTML = '<p class="book-note">No other open times in the next two weeks.</p>'; return; }
+      slot.innerHTML = '<p class="book-note">' + esc(zoneNote(days[0].slots[0].start, data.timeZone)) + '</p><div class="book-times"></div>';
       var box = slot.querySelector('.book-times');
       days.forEach(function (day) {
         day.slots.forEach(function (s) {
@@ -237,7 +254,6 @@ function show(root, token, meeting) {
           box.appendChild(btn);
         });
       });
-      if (!days.length) slot.innerHTML = '<p class="book-note">No other open times in the next two weeks.</p>';
     }).catch(function (err) {
       slot.innerHTML = '<p class="book-error">' + esc(err.message) + '</p>';
     });
