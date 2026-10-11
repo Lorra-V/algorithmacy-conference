@@ -84,8 +84,16 @@ module.exports = async (req, res) => {
     return res.json({ error: FRIENDLY_SEND_ERROR });
   }
 
+  try {
+    const { recordLead } = require('../lib/portal/leads');
+    await recordLead(clean);
+  } catch (e) {
+    console.error('studio lead store', e);
+  }
+
   return res.json({ ok: true });
 };
+
 
 function validateInquiry(b) {
   const errors = [];

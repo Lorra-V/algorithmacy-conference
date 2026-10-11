@@ -1,0 +1,14 @@
+{
+  "private": true,
+  "description": "Server dependencies for the Algorithmacy Studio portal. The site itself is static HTML.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.10.0",
+    "stripe": "^20.0.0"
+  }
+}

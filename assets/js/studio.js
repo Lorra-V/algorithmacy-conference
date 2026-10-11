@@ -1,8 +1,8 @@
 (function () {
-  var field = document.querySelector(".studio-field");
-  if (field && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    field.querySelectorAll("animate, animateMotion").forEach(function (node) { node.remove(); });
-    field.classList.add("is-still");
+  var diagram = document.querySelector(".studio-field");
+  if (diagram && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    diagram.querySelectorAll("animate, animateMotion").forEach(function (node) { node.remove(); });
+    diagram.classList.add("is-still");
   }
 
   var form = document.getElementById("desk-form");
@@ -154,4 +154,31 @@
   });
 
   applyIntent();
+
+  var roi = document.getElementById("roi");
+  var roiOut = document.getElementById("roi-out");
+  function money(n) {
+    return "$" + Math.round(n).toLocaleString("en-US");
+  }
+  function writeRoi() {
+    if (!roi || !roiOut) return;
+    var people = Number(document.getElementById("roi-people").value);
+    var hours = Number(document.getElementById("roi-hours").value);
+    var rate = Number(document.getElementById("roi-rate").value);
+    if (![people, hours, rate].every(function (n) { return Number.isFinite(n) && n >= 0; }) || people < 1) {
+      roiOut.textContent = "Enter the people, the hours, and the value of an hour.";
+      return;
+    }
+    var month = people * hours * rate * 52 / 12;
+    var line = "At these numbers, the chores are about " + money(month) + " a month of staff time. Studio is $1,000 a month after the $5,000 setup.";
+    if (month < 1000) {
+      line += " The estimate is under the monthly fee. The reason to look at this is the time, not a cash saving.";
+    }
+    line += " This is an estimate, not a promise that the firm will save that amount.";
+    roiOut.textContent = line;
+  }
+  if (roi) {
+    roi.addEventListener("input", writeRoi);
+    writeRoi();
+  }
 })();
