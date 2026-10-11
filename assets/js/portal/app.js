@@ -232,7 +232,12 @@ async function renderLogin() {
       location.href = loginNext();
     } catch (e) {
       err.hidden = false;
-      err.textContent = e.message || 'Google sign-in did not finish.';
+      const code = e && e.code;
+      err.textContent = code === 'auth/popup-blocked'
+        ? 'The browser blocked the Google window. Allow popups for this site, or use the email link.'
+        : (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request'
+          ? 'Google sign-in was closed before it finished.'
+          : (e.message || 'Google sign-in did not finish.'));
     }
   });
 }
