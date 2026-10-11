@@ -1,43 +1,180 @@
 import { api, authApi, esc, getAuth, getConfig, safeNext, waitForUser } from './api.js';
 
-const LINKS = [
-  ['dashboard', '/portal/', 'Today'],
-  ['activity', '/portal/activity/', 'Activity'],
-  ['agents', '/portal/agents/', 'Agents'],
-  ['approvals', '/portal/approvals/', 'Approvals'],
-  ['requests', '/portal/requests/', 'Requests'],
-  ['meetings', '/portal/meetings/', 'Meetings'],
-  ['billing', '/portal/billing/', 'Billing'],
-  ['account', '/portal/account/', 'Account'],
-  ['reports', '/portal/reports/', 'Reports'],
+const GROUPS = [
+  [['dashboard', '/portal/', 'Today']],
+  [
+    ['activity', '/portal/activity/', 'Activity'],
+    ['agents', '/portal/agents/', 'Agents'],
+    ['approvals', '/portal/approvals/', 'Approvals'],
+    ['requests', '/portal/requests/', 'Requests'],
+  ],
+  [
+    ['meetings', '/portal/meetings/', 'Meetings'],
+    ['reports', '/portal/reports/', 'Reports'],
+  ],
+  [
+    ['billing', '/portal/billing/', 'Billing'],
+    ['account', '/portal/account/', 'Account'],
+  ],
 ];
+
+const LABELS = {
+  did: 'Done',
+  needs_approval: 'Waiting on you',
+  blocked: 'Blocked',
+  error: 'Error',
+  note: 'Note',
+  pending: 'Waiting',
+  approved: 'Approved',
+  declined: 'Declined',
+  open: 'Open',
+  done: 'Done',
+  learning: 'Learning',
+  running: 'Running',
+  paused: 'Paused',
+  booked: 'Booked',
+  cancelled: 'Cancelled',
+  canceled: 'Canceled',
+  held: 'Held',
+  invited: 'Invited',
+  claimed: 'Claimed',
+  active: 'Active',
+  none: 'Not started',
+  trialing: 'Trial',
+  past_due: 'Past due',
+  unpaid: 'Unpaid',
+  incomplete: 'Incomplete',
+  incomplete_expired: 'Incomplete',
+  discovery: 'Discovery',
+  checkpoint: 'Checkpoint',
+  monthly: 'Monthly',
+  owner: 'Owner',
+  member: 'Member',
+};
 
 const root = document.getElementById('portal');
 const page = root ? root.dataset.page : '';
+let viewer = null;
 
-function el(html) {
-  const box = document.createElement('div');
-  box.innerHTML = html;
-  return box;
+function label(value) {
+  if (value == null || value === '') return '';
+  const key = String(value);
+  if (LABELS[key]) return LABELS[key];
+  return key.replace(/_/g, ' ');
 }
 
-function shell(user, title) {
-  const admin = user.isAdmin ? '<a href="/portal/admin/"' + (page.indexOf('admin') === 0 ? ' aria-current="page"' : '') + '>Admin</a>' : '';
-  const links = LINKS.map(function (item) {
-    const current = item[0] === page ? ' aria-current="page"' : '';
-    return '<a href="' + item[1] + '"' + current + '>' + item[2] + '</a>';
+function statusClass(value) {
+  if (value === 'needs_approval' || value === 'pending' || value === 'open') return 'waiting';
+  if (value === 'blocked' || value === 'error' || value === 'past_due' || value === 'declined' || value === 'unpaid') return 'blocked';
+  return '';
+}
+
+function whenLabel(iso) {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return String(iso);
+  return new Intl.DateTimeFormat('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+  }).format(date);
+}
+
+function monthLabel(key) {
+  const match = /^(\d{4})-(\d{2})$/.exec(key || '');
+  if (!match) return key || '';
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'long', year: 'numeric', timeZone: 'UTC',
+  }).format(new Date(Date.UTC(+match[1], +match[2] - 1, 1)));
+}
+
+function accountLine(account) {
+  const bits = [label(account.status), 'Billing ' + label(account.billingStatus || 'none').toLowerCase()];
+  if (account.replyTime) bits.push(account.replyTime);
+  return bits.join('. ') + '.';
+}
+
+function ledger(rows) {
+  if (!rows) return '';
+  return '<figure class="record ledger"><table><tbody>' + rows + '</tbody></table></figure>';
+}
+
+function ledgerRow(when, state, stateName, entry) {
+  const head = when && typeof when === 'object' ? when.html : esc(when);
+  return '<tr><th>' + head + '</th><td class="status ' + state + '">' + esc(stateName) + '</td><td>' + entry + '</td></tr>';
+}
+
+function empty(text) {
+  return '<p class="portal-empty">' + esc(text) + '</p>';
+}
+
+function activityEntry(row) {
+  return esc(row.summary) +
+    (row.detail ? '<p class="ledger-detail">' + esc(row.detail) + '</p>' : '') +
+    (row.approvedBy ? '<p class="ledger-detail">Signed off by ' + esc(row.approvedBy) + '.</p>' : '');
+}
+
+function rail(user) {
+  const groups = GROUPS.slice();
+  if (user && user.isAdmin) {
+    groups.push([
+      ['admin', '/portal/admin/', 'Admin'],
+      ['admin-availability', '/portal/admin/availability/', 'Availability'],
+    ]);
+  }
+  return groups.map(function (group, index) {
+    const links = group.map(function (item) {
+      const current = item[0] === page || (item[0] === 'admin' && page === 'admin-account');
+      return '<a href="' + item[1] + '"' + (current ? ' aria-current="page"' : '') + '>' + item[2] + '</a>';
+    }).join('');
+    return (index ? '<span class="rail-break"></span>' : '') + links;
   }).join('');
-  root.innerHTML =
-    '<header class="portal-top"><a class="portal-brand" href="/portal/">Algorithmacy Studio</a>' +
-    '<nav class="portal-nav" aria-label="Account">' + links + admin +
-    '<button type="button" class="btn-ghost" id="sign-out">Sign out</button></nav></header>' +
-    '<h1>' + esc(title) + '</h1><div id="portal-main"></div>';
-  document.getElementById('sign-out').addEventListener('click', async function () {
+}
+
+async function signOut() {
+  const button = document.getElementById('sign-out');
+  if (button) button.disabled = true;
+  try {
     const auth = await getAuth();
     if (auth) await authApi().signOut(auth);
-    location.href = '/portal/login/';
-  });
+  } catch (e) { /* leave the page either way */ }
+  location.href = '/portal/login/';
+}
+
+function shell(user, title, sub) {
+  const meta = document.getElementById('portal-top-meta');
+  if (meta) {
+    const office = viewer && viewer.account && viewer.account.office;
+    const who = office || (user && (user.name || user.email)) || '';
+    meta.innerHTML = (who ? '<span class="portal-who">' + esc(who) + '</span>' : '') +
+      '<button type="button" class="top-signout" id="sign-out">Sign out</button>';
+    document.getElementById('sign-out').addEventListener('click', signOut);
+  }
+  root.innerHTML =
+    '<div class="portal-frame">' +
+    '<nav class="rail" aria-label="Account">' + rail(user) + '</nav>' +
+    '<div class="portal-body">' +
+    '<header class="page-head"><h1>' + esc(title) + '</h1>' +
+    (sub ? '<p>' + esc(sub) + '</p>' : '') +
+    '</header>' +
+    '<div id="portal-main"><p class="portal-loading">Loading.</p></div>' +
+    '</div></div>';
   return document.getElementById('portal-main');
+}
+
+function setHead(title, sub) {
+  const heading = document.querySelector('#portal .page-head h1');
+  if (heading && title) heading.textContent = title;
+  const head = document.querySelector('#portal .page-head');
+  if (!head) return;
+  let line = head.querySelector('p');
+  if (!sub) {
+    if (line) line.remove();
+    return;
+  }
+  if (!line) {
+    line = document.createElement('p');
+    head.appendChild(line);
+  }
+  line.textContent = sub;
 }
 
 function loginNext() {
@@ -48,18 +185,18 @@ async function renderLogin() {
   const cfg = await getConfig();
   const email = new URLSearchParams(location.search).get('email') || '';
   root.innerHTML =
-    '<header class="portal-top"><a class="portal-brand" href="/studio">Algorithmacy Studio</a>' +
-    '<nav class="portal-nav"><a href="/studio">The offer</a><a href="/book/">Book a call</a></nav></header>' +
-    '<h1>Sign in.</h1>' +
-    (cfg.configured ? '' : '<p class="error">Sign-in is not open yet. Write to topanga@algorithmacy.org.</p>') +
-    '<form class="stack" id="login-form" style="max-width:420px">' +
-    '<label class="field"><span>Email</span><input type="email" name="email" required autocomplete="email" value="' + esc(email) + '"></label>' +
-    '<p class="book-hp" hidden><input name="website" tabindex="-1" autocomplete="off"></p>' +
-    '<button class="btn" type="submit">Email me a link</button>' +
-    '<p class="error" id="login-error" hidden></p>' +
-    '<p class="muted" id="login-note"></p>' +
-    (cfg.configured ? '<button class="btn-ghost" type="button" id="google">Continue with Google</button>' : '') +
-    '</form>';
+    '<h1>Sign in to the Studio portal.</h1>' +
+    '<p class="portal-login-lead">An account is created after a call. Use the email the invite went to.</p>' +
+    (cfg.configured ? '' : '<p class="desk-status">Sign-in is not open yet. Write to <a href="mailto:topanga@algorithmacy.org">topanga@algorithmacy.org</a>.</p>') +
+    '<form class="desk-fields" id="login-form">' +
+    '<label class="desk-field desk-field-wide"><span>Email</span><input type="email" name="email" required autocomplete="email" value="' + esc(email) + '"></label>' +
+    '<p class="book-hp" hidden><input name="website" tabindex="-1" autocomplete="off" aria-hidden="true"></p>' +
+    '<div class="desk-field-wide"><button class="btn" type="submit">Email me a link</button></div>' +
+    '<p class="desk-status desk-field-wide" id="login-error" hidden></p>' +
+    '<p class="portal-or desk-field-wide" id="login-note"></p>' +
+    (cfg.configured ? '<div class="desk-field-wide"><button class="btn-quiet" type="button" id="google">Continue with Google</button></div>' : '') +
+    '</form>' +
+    '<p class="portal-or">No account yet? <a href="/book/">Book a 20-minute call</a>.</p>';
   const form = document.getElementById('login-form');
   form.addEventListener('submit', async function (event) {
     event.preventDefault();
@@ -76,11 +213,9 @@ async function renderLogin() {
       });
       const data = await res.json().catch(function () { return {}; });
       if (!res.ok) throw new Error(data.error || 'We could not send that.');
-      const note = document.getElementById('login-note');
-      note.textContent = data.sent
+      document.getElementById('login-note').textContent = data.sent
         ? 'The link is on its way. It works once.'
         : 'No account for that address yet. Book a call, and we will invite you after it.';
-      if (!data.sent) note.innerHTML += ' <a href="/book/">Book a 20-minute call</a>';
     } catch (e) {
       err.hidden = false;
       err.textContent = e.message;
@@ -89,6 +224,7 @@ async function renderLogin() {
   const google = document.getElementById('google');
   if (google) google.addEventListener('click', async function () {
     const err = document.getElementById('login-error');
+    err.hidden = true;
     try {
       const auth = await getAuth();
       const fns = authApi();
@@ -102,7 +238,7 @@ async function renderLogin() {
 }
 
 async function renderFinish() {
-  root.innerHTML = '<h1>Signing in.</h1><p class="muted" id="finish-note">Checking the link.</p>';
+  root.innerHTML = '<header class="page-head"><h1>Signing in.</h1><p id="finish-note">Checking the link.</p></header>';
   const note = document.getElementById('finish-note');
   try {
     const auth = await getAuth();
@@ -126,7 +262,9 @@ async function renderFinish() {
 async function session() {
   const auth = await getAuth();
   if (!auth) {
-    root.innerHTML = '<h1>Sign-in is not open yet.</h1><p class="muted">Write to topanga@algorithmacy.org.</p>';
+    const meta = document.getElementById('portal-top-meta');
+    if (meta) meta.textContent = '';
+    root.innerHTML = '<header class="page-head"><h1>Sign-in is not open yet.</h1><p>Write to <a href="mailto:topanga@algorithmacy.org">topanga@algorithmacy.org</a>.</p></header>';
     return null;
   }
   const user = await waitForUser(auth);
@@ -134,47 +272,52 @@ async function session() {
     location.href = '/portal/login/?next=' + encodeURIComponent(location.pathname + location.search);
     return null;
   }
-  const me = await api('me');
-  return me;
+  return api('me');
 }
 
 function noAccount(main, me) {
   if (me && me.user && me.user.isAdmin) {
     main.innerHTML =
-      '<p class="lede">You are signed in as the engineer. This address is not on a client account, so the client pages are empty. The work is on the admin pages.</p>' +
-      '<p><a class="btn" href="/portal/admin/">Accounts and leads</a> <a class="btn" href="/portal/admin/availability/">Availability</a></p>';
+      '<p class="portal-empty">You are signed in as the engineer. This address is not on a client account, so the client pages are empty. The work is on the admin pages.</p>' +
+      '<div class="portal-actions"><a class="btn" href="/portal/admin/">Accounts and leads</a> <a class="btn-quiet" href="/portal/admin/availability/">Availability</a></div>';
     return;
   }
-  main.innerHTML = '<p class="lede">No account for this address yet. Book a call, and we will invite you after it.</p><p><a class="btn" href="/book/">Book a 20-minute call</a></p>';
+  main.innerHTML =
+    '<p class="portal-empty">No account for this address yet. Book a call, and we will invite you after it.</p>' +
+    '<div class="portal-actions"><a class="btn" href="/book/">Book a 20-minute call</a></div>';
 }
 
 async function renderDashboard(me) {
-  const main = shell(me.user, me.account ? me.account.office : 'Studio');
+  const main = shell(me.user, 'Today', me.account ? accountLine(me.account) : '');
   if (!me.account) return noAccount(main, me);
   const data = await api('home');
-  const upcoming = data.upcoming
-    ? '<p>' + esc(data.upcoming.when) + '</p><p class="muted">' + esc(data.upcoming.type) + '</p>'
-    : '<p class="muted">No call on the books.</p>';
+  const upcoming = data.upcoming;
+  const nextFig = upcoming
+    ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(upcoming.start))
+    : 'None';
+  const nextText = upcoming
+    ? esc(upcoming.when) + '. ' + esc(label(upcoming.type)) + '. <a href="/portal/meetings/">Meetings</a>'
+    : 'No call on the books. <a href="/portal/meetings/">Meetings</a>';
+  const waiting = (data.approvals || []).length;
+  const open = (data.requests || []).length;
   const agents = (data.agents || []).map(function (a) {
-    return '<li><strong>' + esc(a.name) + '</strong> · ' + esc(a.chore) + ' · ' + esc(a.status) + '</li>';
-  }).join('') || '<li>No agents yet. They show up here as they are set up.</li>';
+    return ledgerRow(a.name, statusClass(a.status), label(a.status), esc(a.chore));
+  }).join('');
   const activity = (data.activity || []).map(function (row) {
-    return '<li>' + esc(row.summary) + '</li>';
-  }).join('') || '<li>Nothing posted yet.</li>';
+    return ledgerRow(whenLabel(row.ts), statusClass(row.type), label(row.type), activityEntry(row));
+  }).join('');
   main.innerHTML =
-    '<p class="pill">' + esc(data.account.status) + ' · billing ' + esc(data.account.billingStatus) + '</p>' +
-    (data.account.replyTime ? '<p class="muted">Reply time: ' + esc(data.account.replyTime) + '</p>' : '') +
-    '<div class="cards">' +
-    '<article class="card"><h2>Next call</h2>' + upcoming + '<p><a href="/portal/meetings/">Meetings</a></p></article>' +
-    '<article class="card"><h2>Waiting on you</h2><p>' + (data.approvals || []).length + ' approval' + ((data.approvals || []).length === 1 ? '' : 's') + '</p><p><a href="/portal/approvals/">Approvals</a></p></article>' +
-    '<article class="card"><h2>Open requests</h2><p>' + (data.requests || []).length + '</p><p><a href="/portal/requests/">Say what should change</a></p></article>' +
-    '</div>' +
-    '<h2>Agents</h2><ul class="list">' + agents + '</ul>' +
-    '<h2>Latest</h2><ul class="list">' + activity + '</ul>';
+    '<ul class="figures">' +
+    '<li><span class="fig">' + esc(nextFig) + '</span><p>' + nextText + '</p></li>' +
+    '<li><span class="fig">' + waiting + '</span><p>' + (waiting === 0 ? 'Nothing is waiting on you.' : (waiting === 1 ? 'Approval is waiting.' : 'Approvals are waiting.')) + ' <a href="/portal/approvals/">Approvals</a></p></li>' +
+    '<li><span class="fig">' + open + '</span><p>' + (open === 0 ? 'No open requests.' : (open === 1 ? 'Open request.' : 'Open requests.')) + ' <a href="/portal/requests/">Requests</a></p></li>' +
+    '</ul>' +
+    '<h2>Agents</h2>' + (agents ? ledger(agents) : empty('No agents yet. They show up here as they are set up.')) +
+    '<h2>Latest</h2>' + (activity ? ledger(activity) : empty('Nothing posted yet.'));
 }
 
 async function renderActivity(me) {
-  const main = shell(me.user, 'Activity');
+  const main = shell(me.user, 'Activity', 'What the agents did, and who signed off.');
   if (!me.account) return noAccount(main, me);
   async function load() {
     const type = document.getElementById('filter-type').value;
@@ -182,73 +325,103 @@ async function renderActivity(me) {
     const q = new URLSearchParams();
     if (type) q.set('type', type);
     if (agent) q.set('agent', agent);
-    const data = await api('activity' + (q.toString() ? '?' + q.toString() : ''));
-    const list = document.getElementById('activity-list');
-    list.innerHTML = (data.activity || []).map(function (row) {
-      return '<li><span class="pill">' + esc(row.type) + '</span> ' + esc(row.summary) +
-        (row.detail ? '<p>' + esc(row.detail) + '</p>' : '') +
-        '<p class="muted">' + esc(row.ts) + (row.approvedBy ? ' · signed off by ' + esc(row.approvedBy) : '') + '</p></li>';
-    }).join('') || '<li>Nothing in this view.</li>';
+    try {
+      const data = await api('activity' + (q.toString() ? '?' + q.toString() : ''));
+      const rows = (data.activity || []).map(function (row) {
+        return ledgerRow(whenLabel(row.ts), statusClass(row.type), label(row.type), activityEntry(row));
+      }).join('');
+      document.getElementById('activity-list').innerHTML = rows ? ledger(rows) : empty('Nothing in this view.');
+    } catch (e) {
+      document.getElementById('activity-list').innerHTML = '<p class="desk-status">' + esc(e.message) + '</p>';
+    }
   }
   const first = await api('activity');
   const options = (first.agents || []).map(function (a) {
     return '<option value="' + esc(a.id) + '">' + esc(a.name) + '</option>';
   }).join('');
   main.innerHTML =
-    '<div class="filters"><label>Type <select id="filter-type"><option value="">All</option><option>did</option><option>needs_approval</option><option>blocked</option><option>error</option><option>note</option></select></label>' +
+    '<div class="portal-filters"><label>Type <select id="filter-type"><option value="">All</option>' +
+    '<option value="did">Done</option><option value="needs_approval">Waiting on you</option>' +
+    '<option value="blocked">Blocked</option><option value="error">Error</option><option value="note">Note</option></select></label>' +
     '<label>Agent <select id="filter-agent"><option value="">All</option>' + options + '</select></label></div>' +
-    '<ul class="list" id="activity-list"></ul>';
+    '<div id="activity-list"></div>';
   document.getElementById('filter-type').addEventListener('change', load);
   document.getElementById('filter-agent').addEventListener('change', load);
   await load();
 }
 
 async function renderAgents(me) {
-  const main = shell(me.user, 'Agents');
+  const main = shell(me.user, 'Agents', 'The chores this office handed over.');
   if (!me.account) return noAccount(main, me);
   const data = await api('agents');
-  main.innerHTML = '<ul class="list">' + ((data.agents || []).map(function (a) {
-    return '<li><strong>' + esc(a.name) + '</strong><p>' + esc(a.chore) + '</p><p class="muted">' + esc(a.status) + (a.last4 ? ' · key ···' + esc(a.last4) : '') + '</p></li>';
-  }).join('') || '<li>No agents yet.</li>') + '</ul>';
+  const rows = (data.agents || []).map(function (a) {
+    const key = a.last4 ? '<p class="ledger-detail">Key ending in ' + esc(a.last4) + '.</p>' : '';
+    return ledgerRow(a.name, statusClass(a.status), label(a.status), esc(a.chore) + key);
+  }).join('');
+  main.innerHTML = rows ? ledger(rows) : empty('No agents yet. They show up here as they are set up.');
 }
 
 async function renderApprovals(me) {
-  const main = shell(me.user, 'Approvals');
+  const main = shell(me.user, 'Approvals', 'A person signs off before a new kind of message goes out.');
   if (!me.account) return noAccount(main, me);
   const data = await api('approvals');
   const items = data.approvals || [];
-  main.innerHTML = items.length ? '<ul class="list" id="approvals"></ul>' : '<p class="empty muted">Nothing is waiting on you.</p>';
+  main.innerHTML = items.length
+    ? '<figure class="record ledger"><table><tbody id="approvals"></tbody></table></figure><p class="desk-status" id="approval-error" hidden></p>'
+    : empty('Nothing is waiting on you.');
   const list = document.getElementById('approvals');
   if (!list) return;
   items.forEach(function (item) {
-    const li = document.createElement('li');
-    li.innerHTML = '<p>' + esc(item.summary) + '</p><div class="row"></div>';
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<th>' + esc(whenLabel(item.createdAt)) + '</th><td class="status waiting">Waiting</td><td></td>';
+    const entry = tr.lastElementChild;
+    const summary = document.createElement('p');
+    summary.textContent = item.summary || '';
+    const actions = document.createElement('div');
+    actions.className = 'portal-actions';
     ['approved', 'declined'].forEach(function (decision) {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = decision === 'approved' ? 'btn' : 'btn-ghost';
+      btn.className = decision === 'approved' ? 'btn' : 'btn-quiet';
       btn.textContent = decision === 'approved' ? 'Approve' : 'Decline';
       btn.addEventListener('click', async function () {
         btn.disabled = true;
-        await api('approvals', { method: 'POST', body: { id: item.id, decision: decision } });
-        li.remove();
-        if (!list.children.length) main.innerHTML += '<p class="muted">Nothing is waiting on you.</p>';
+        try {
+          await api('approvals', { method: 'POST', body: { id: item.id, decision: decision } });
+          tr.remove();
+          if (!list.children.length) {
+            list.closest('.ledger').replaceWith(Object.assign(document.createElement('p'), {
+              className: 'portal-empty',
+              textContent: 'Nothing is waiting on you.',
+            }));
+          }
+        } catch (e) {
+          btn.disabled = false;
+          const err = document.getElementById('approval-error');
+          err.hidden = false;
+          err.textContent = e.message;
+        }
       });
-      li.querySelector('.row').appendChild(btn);
+      actions.appendChild(btn);
     });
-    list.appendChild(li);
+    entry.appendChild(summary);
+    entry.appendChild(actions);
+    list.appendChild(tr);
   });
 }
 
 async function renderRequests(me) {
-  const main = shell(me.user, 'What should change');
+  const main = shell(me.user, 'Requests', 'Say what should change.');
   if (!me.account) return noAccount(main, me);
   const data = await api('requests');
+  const rows = (data.requests || []).map(function (r) {
+    return ledgerRow(whenLabel(r.createdAt), statusClass(r.status), label(r.status), esc(r.summary));
+  }).join('');
   main.innerHTML =
-    '<form id="request-form"><label class="field"><span>The change</span><input name="summary" required maxlength="500" placeholder="Stop the review replies. Keep the document chase."></label><button class="btn" type="submit">Send</button><p class="error" id="request-error" hidden></p></form>' +
-    '<ul class="list">' + (data.requests || []).map(function (r) {
-      return '<li><span class="pill">' + esc(r.status) + '</span> ' + esc(r.summary) + '</li>';
-    }).join('') + '</ul>';
+    '<form id="request-form" class="desk-fields"><label class="desk-field desk-field-wide"><span>The change</span><input name="summary" required maxlength="500" placeholder="Stop the review replies. Keep the document chase."></label>' +
+    '<div class="desk-field-wide portal-actions"><button class="btn" type="submit">Send</button></div>' +
+    '<p class="desk-status desk-field-wide" id="request-error" hidden></p></form>' +
+    '<h2>Sent</h2>' + (rows ? ledger(rows) : empty('Nothing sent yet.'));
   document.getElementById('request-form').addEventListener('submit', async function (event) {
     event.preventDefault();
     const err = document.getElementById('request-error');
@@ -265,11 +438,11 @@ async function renderRequests(me) {
 
 function slotButtons(slots, timeZone, onPick) {
   const box = document.createElement('div');
-  box.className = 'filters';
+  box.className = 'book-times';
   (slots || []).slice(0, 24).forEach(function (slot) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'btn-ghost';
+    btn.className = 'book-slot';
     btn.textContent = new Intl.DateTimeFormat('en-US', {
       timeZone: timeZone, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
     }).format(new Date(slot.start));
@@ -280,32 +453,45 @@ function slotButtons(slots, timeZone, onPick) {
 }
 
 async function renderMeetings(me) {
-  const main = shell(me.user, 'Meetings');
+  const main = shell(me.user, 'Meetings', 'Checkpoint at day 30, then a call each month.');
   if (!me.account) return noAccount(main, me);
   const data = await api('meetings');
+  const rows = (data.meetings || []).map(function (m) {
+    const cancel = m.status === 'booked'
+      ? '<div class="portal-actions"><button type="button" class="btn-quiet" data-cancel="' + esc(m.id) + '">Cancel</button></div>'
+      : '';
+    return ledgerRow(m.when || whenLabel(m.start), statusClass(m.status), label(m.status), esc(label(m.type)) + cancel);
+  }).join('');
   main.innerHTML =
-    '<ul class="list">' + (data.meetings || []).map(function (m) {
-      return '<li data-id="' + esc(m.id) + '"><strong>' + esc(m.when) + '</strong><p>' + esc(m.type) + ' · ' + esc(m.status) + '</p>' +
-        (m.status === 'booked' ? '<button type="button" class="btn-ghost" data-cancel="' + esc(m.id) + '">Cancel</button>' : '') +
-        '</li>';
-    }).join('') + '</ul>' +
+    (rows ? ledger(rows) : empty('No calls on the books.')) +
     (me.account.status === 'cancelled' ? '' :
-      '<h2>Book a checkpoint or a monthly call</h2><div class="filters"><button type="button" class="btn" id="book-checkpoint">Checkpoint</button><button type="button" class="btn-ghost" id="book-monthly">Monthly</button></div><div id="slot-box"></div><p class="error" id="meet-error" hidden></p>');
+      '<h2>Book a checkpoint or a monthly call</h2><div class="portal-actions"><button type="button" class="btn" id="book-checkpoint">Checkpoint</button><button type="button" class="btn-quiet" id="book-monthly">Monthly</button></div><div id="slot-box"></div><p class="desk-status" id="meet-error" hidden></p>');
   main.querySelectorAll('[data-cancel]').forEach(function (btn) {
     btn.addEventListener('click', async function () {
       btn.disabled = true;
-      await api('meetings/cancel', { method: 'POST', body: { id: btn.getAttribute('data-cancel') } });
-      location.reload();
+      try {
+        await api('meetings/cancel', { method: 'POST', body: { id: btn.getAttribute('data-cancel') } });
+        location.reload();
+      } catch (e) {
+        btn.disabled = false;
+        const err = document.getElementById('meet-error') || document.createElement('p');
+        err.hidden = false;
+        err.textContent = e.message;
+      }
     });
   });
   async function open(type) {
     const err = document.getElementById('meet-error');
     err.hidden = true;
     const box = document.getElementById('slot-box');
-    box.textContent = 'Loading times.';
+    box.innerHTML = '<p class="portal-loading">Loading times.</p>';
     try {
       const slots = await api('meetings/slots?type=' + type);
       box.textContent = '';
+      if (!(slots.slots || []).length) {
+        box.innerHTML = empty('No open times in the next two weeks.');
+        return;
+      }
       box.appendChild(slotButtons(slots.slots, slots.timeZone, async function (slot, button) {
         button.disabled = true;
         try {
@@ -331,19 +517,18 @@ async function renderMeetings(me) {
 }
 
 async function renderBilling(me) {
-  const main = shell(me.user, 'Billing');
+  const main = shell(me.user, 'Billing', me.account ? accountLine(me.account) : '');
   if (!me.account) return noAccount(main, me);
   const status = new URLSearchParams(location.search).get('status');
   const banner = status === 'success'
-    ? '<p>Payment received. The account updates when Stripe confirms it.</p>'
-    : (status === 'cancel' ? '<p class="muted">The payment was not completed.</p>' : '');
+    ? '<p class="notice">Payment received. The account updates when Stripe confirms it.</p>'
+    : (status === 'cancel' ? '<p class="notice">The payment was not completed.</p>' : '');
   const active = me.account.billingStatus === 'active' || me.account.billingStatus === 'trialing';
   main.innerHTML = banner +
-    '<p class="pill">' + esc(me.account.billingStatus) + '</p>' +
-    '<p class="lede">$5,000 to set up, then $1,000 a month. The setup is on the first invoice only.</p>' +
-    '<div class="row"><button class="btn" id="pay" type="button"' + (active ? ' hidden' : '') + '>Pay $5,000 and start the month</button>' +
-    '<button class="btn-ghost" id="manage-bill" type="button">Invoices and card</button></div>' +
-    '<p class="error" id="bill-error" hidden></p>';
+    '<p class="bill-line"><b>$5,000</b> to set up, then <b>$1,000 a month</b>. The setup is on the first invoice only.</p>' +
+    '<div class="portal-actions"><button class="btn" id="pay" type="button"' + (active ? ' hidden' : '') + '>Pay $5,000 and start the month</button>' +
+    '<button class="btn-quiet" id="manage-bill" type="button">Invoices and card</button></div>' +
+    '<p class="desk-status" id="bill-error" hidden></p>';
   async function go(path, button) {
     const err = document.getElementById('bill-error');
     err.hidden = true;
@@ -365,26 +550,38 @@ async function renderBilling(me) {
 }
 
 async function renderAccount(me) {
-  const main = shell(me.user, 'Account');
+  const main = shell(me.user, 'Account', me.account ? me.account.kind : '');
   if (!me.account) return noAccount(main, me);
   const owner = me.account.role === 'owner';
   const meMember = (me.account.members || []).find(function (m) { return m.email === me.user.email; });
+  const rows = (me.account.members || []).map(function (m) {
+    const remove = owner && m.role !== 'owner'
+      ? '<div class="portal-actions"><button type="button" class="btn-quiet" data-remove="' + esc(m.email) + '">Remove</button></div>'
+      : '';
+    return ledgerRow(m.name || m.email, '', label(m.role), esc(m.email) + remove);
+  }).join('');
   main.innerHTML =
-    '<p class="lede">' + esc(me.account.office) + ' · ' + esc(me.account.kind) + '</p>' +
-    '<ul class="list">' + (me.account.members || []).map(function (m) {
-      return '<li>' + esc(m.name || m.email) + ' · ' + esc(m.email) + ' · ' + esc(m.role) +
-        (owner && m.role !== 'owner' ? ' <button type="button" class="btn-ghost" data-remove="' + esc(m.email) + '">Remove</button>' : '') +
-        '</li>';
-    }).join('') + '</ul>' +
-    '<label class="field"><span><input type="checkbox" id="digest"' + (meMember && meMember.digest !== false ? ' checked' : '') + '> Email me the weekly note and the monthly report</span></label>' +
-    (owner ? '<h2>Invite someone</h2><form id="invite"><label class="field"><span>Name</span><input name="name"></label><label class="field"><span>Email</span><input type="email" name="email" required></label><button class="btn" type="submit">Send invite</button><p class="error" id="invite-error" hidden></p></form>' : '');
+    (rows ? ledger(rows) : empty('No one is on this account yet.')) +
+    '<label class="portal-check"><input type="checkbox" id="digest"' + (meMember && meMember.digest !== false ? ' checked' : '') + '> Email me the weekly note and the monthly report</label>' +
+    (owner
+      ? '<h2>Invite someone</h2><form id="invite" class="desk-fields"><label class="desk-field"><span>Name</span><input name="name"></label><label class="desk-field"><span>Email</span><input type="email" name="email" required></label><div class="desk-field-wide portal-actions"><button class="btn" type="submit">Send invite</button></div><p class="desk-status desk-field-wide" id="invite-error" hidden></p></form>'
+      : '') +
+    '<p class="desk-status" id="account-error" hidden></p>';
   document.getElementById('digest').addEventListener('change', function (event) {
     api('members/digest', { method: 'POST', body: { digest: event.target.checked } });
   });
   main.querySelectorAll('[data-remove]').forEach(function (btn) {
     btn.addEventListener('click', async function () {
-      await api('members/remove', { method: 'POST', body: { email: btn.getAttribute('data-remove') } });
-      location.reload();
+      btn.disabled = true;
+      try {
+        await api('members/remove', { method: 'POST', body: { email: btn.getAttribute('data-remove') } });
+        location.reload();
+      } catch (e) {
+        btn.disabled = false;
+        const err = document.getElementById('account-error');
+        err.hidden = false;
+        err.textContent = e.message;
+      }
     });
   });
   const invite = document.getElementById('invite');
@@ -404,43 +601,62 @@ async function renderAccount(me) {
 }
 
 async function renderReports(me) {
-  const main = shell(me.user, 'Reports');
+  const main = shell(me.user, 'Reports', 'Written at the start of the month, from the activity log.');
   if (!me.account) return noAccount(main, me);
   const month = new URLSearchParams(location.search).get('month') || '';
   const data = await api('reports');
   const reports = data.reports || [];
   const current = reports.find(function (r) { return r.month === month; }) || reports[0];
+  if (!reports.length) {
+    main.innerHTML = empty('No report yet. The first one is written at the start of the next month.');
+    return;
+  }
   main.innerHTML =
-    '<div class="filters">' + reports.map(function (r) {
-      return '<a class="btn-ghost" href="/portal/reports/?month=' + esc(r.month) + '">' + esc(r.month) + '</a>';
+    '<div class="book-days">' + reports.map(function (r) {
+      const on = current && r.month === current.month;
+      return '<a class="book-slot' + (on ? ' is-on' : '') + '" href="/portal/reports/?month=' + esc(r.month) + '"' +
+        (on ? ' aria-current="page"' : '') + '>' + esc(monthLabel(r.month)) + '</a>';
     }).join('') + '</div>' +
     (current
-      ? '<article class="card"><h2>' + esc(current.month) + '</h2><p>' + esc(current.total || 0) + ' updates.</p><ul class="list">' +
-        (current.highlights || []).map(function (h) { return '<li>' + esc(h) + '</li>'; }).join('') + '</ul></article>'
-      : '<p class="muted">No report yet. The first one is written at the start of the next month.</p>');
+      ? '<h2>' + esc(monthLabel(current.month)) + '</h2><p class="portal-empty">' + esc(current.total || 0) + ' updates.</p>' +
+        ((current.highlights || []).length
+          ? '<ul class="posture">' + current.highlights.map(function (h) { return '<li>' + esc(h) + '</li>'; }).join('') + '</ul>'
+          : '')
+      : empty('No report yet. The first one is written at the start of the next month.'));
 }
 
 async function renderAdmin(me) {
-  const main = shell(me.user, 'Accounts');
+  const main = shell(me.user, 'Accounts', 'Create an account after a call. Leads from the form and the calendar land here.');
   const data = await api('admin/accounts');
+  const accounts = (data.accounts || []).map(function (a) {
+    return ledgerRow(
+      { html: '<a href="/portal/admin/account/?id=' + esc(a.id) + '">' + esc(a.office) + '</a>' },
+      statusClass(a.billingStatus),
+      label(a.billingStatus || 'none'),
+      esc(a.kind) + '. ' + esc(label(a.status)) + '.',
+    );
+  }).join('');
+  const leads = (data.leads || []).map(function (l) {
+    const source = l.source === 'book' ? 'Calendar' : (l.source ? 'Form' : '');
+    const detail = [l.business, l.chore || l.intent].filter(Boolean).join('. ');
+    return ledgerRow(l.name || '', '', source, esc(l.email) + (detail ? '<p class="ledger-detail">' + esc(detail) + (l.source ? '.' : '') + '</p>' : ''));
+  }).join('');
   main.innerHTML =
-    '<form id="new-account" class="card"><h2>New account</h2>' +
-    '<label class="field"><span>Business</span><input name="office" required></label>' +
-    '<label class="field"><span>Kind</span><select name="kind"><option>law firm</option><option>dental practice or med spa</option><option>real estate office</option><option>CPA firm</option><option>owner-run office</option></select></label>' +
-    '<label class="field"><span>Owner name</span><input name="name" required></label>' +
-    '<label class="field"><span>Owner email</span><input type="email" name="email" required></label>' +
-    '<button class="btn" type="submit">Create and invite</button><p class="error" id="admin-error" hidden></p></form>' +
-    '<h2>Accounts</h2>' + ((data.accounts || []).length
-      ? '<ul class="list">' + data.accounts.map(function (a) {
-          return '<li><a href="/portal/admin/account/?id=' + esc(a.id) + '">' + esc(a.office) + '</a><p class="muted">' + esc(a.kind) + '. ' + esc(a.status) + '. Billing ' + esc(a.billingStatus || 'not started') + '.</p></li>';
-        }).join('') + '</ul>'
-      : '<p class="muted">No accounts yet. The first one is created with the form above, after a call.</p>') +
-    '<h2>Leads</h2>' + ((data.leads || []).length
-      ? '<ul class="list">' + data.leads.map(function (l) {
-          return '<li>' + esc(l.name) + ', ' + esc(l.email) + '<p class="muted">' + esc(l.business || '') + (l.chore || l.intent ? '. ' + esc(l.chore || l.intent) : '') + (l.source ? '. From the ' + esc(l.source === 'book' ? 'calendar' : 'form') : '') + '</p></li>';
-        }).join('') + '</ul>'
-      : '<p class="muted">No leads yet. Inquiries from the Studio form and bookings from the calendar appear here.</p>') +
-    '<p><a href="/portal/admin/availability/">Availability</a></p>';
+    '<h2>New account</h2>' +
+    '<form id="new-account" class="desk-fields">' +
+    '<label class="desk-field"><span>Business</span><input name="office" required></label>' +
+    '<label class="desk-field"><span>Kind</span><select name="kind"><option>law firm</option><option>dental practice or med spa</option><option>real estate office</option><option>CPA firm</option><option>owner-run office</option></select></label>' +
+    '<label class="desk-field"><span>Owner name</span><input name="name" required></label>' +
+    '<label class="desk-field"><span>Owner email</span><input type="email" name="email" required></label>' +
+    '<div class="desk-field-wide portal-actions"><button class="btn" type="submit">Create and invite</button></div>' +
+    '<p class="desk-status desk-field-wide" id="admin-error" hidden></p></form>' +
+    '<section class="portal-section"><h2>Accounts</h2>' +
+    (accounts ? ledger(accounts) : empty('No accounts yet. The first one is created with the form above, after a call.')) +
+    '</section>' +
+    '<section class="portal-section"><h2>Leads</h2>' +
+    (leads ? ledger(leads) : empty('No leads yet. Inquiries from the Studio form and bookings from the calendar appear here.')) +
+    '</section>' +
+    '<p class="portal-more"><a href="/portal/admin/availability/">Availability</a></p>';
   document.getElementById('new-account').addEventListener('submit', async function (event) {
     event.preventDefault();
     const err = document.getElementById('admin-error');
@@ -461,39 +677,58 @@ async function renderAdmin(me) {
 
 async function renderAdminAccount(me) {
   const id = new URLSearchParams(location.search).get('id') || '';
-  const main = shell(me.user, 'Account');
-  if (!id) { main.innerHTML = '<p class="error">Missing account.</p>'; return; }
+  const main = shell(me.user, 'Account', '');
+  if (!id) {
+    main.innerHTML = '<p class="desk-status">Missing account.</p>';
+    return;
+  }
   const data = await api('admin/accounts/' + encodeURIComponent(id));
   const acc = data.account;
+  setHead(acc.office, acc.kind + '. ' + label(acc.status) + '. Billing ' + label(acc.billingStatus || 'none').toLowerCase() + '.');
+  const agents = (data.agents || []).map(function (a) {
+    const next = a.status === 'running' ? 'paused' : 'running';
+    const verb = a.status === 'running' ? 'Pause' : 'Mark running';
+    return ledgerRow(
+      a.name,
+      statusClass(a.status),
+      label(a.status),
+      esc(a.chore) + '<div class="portal-actions"><button type="button" class="btn-quiet" data-status="' + esc(a.id) + '" data-next="' + next + '">' + verb + '</button></div>',
+    );
+  }).join('');
+  const pending = (data.approvals || []).filter(function (a) { return a.status === 'pending'; });
+  const approvals = pending.map(function (a) {
+    return ledgerRow(whenLabel(a.createdAt), 'waiting', 'Waiting', esc(a.summary) + '<div class="portal-actions"><button class="btn" type="button" data-approve="' + esc(a.id) + '">Approve</button></div>');
+  }).join('');
+  const requests = (data.requests || []).map(function (r) {
+    const done = r.status === 'open'
+      ? '<div class="portal-actions"><button class="btn-quiet" type="button" data-done="' + esc(r.id) + '">Mark done</button></div>'
+      : '';
+    return ledgerRow(whenLabel(r.createdAt), statusClass(r.status), label(r.status), esc(r.summary) + done);
+  }).join('');
   main.innerHTML =
-    '<p class="lede">' + esc(acc.office) + ' · ' + esc(acc.kind) + ' · ' + esc(acc.status) + ' · billing ' + esc(acc.billingStatus || 'none') + '</p>' +
-    '<form id="reply"><label class="field"><span>Reply time shown on the account</span><input name="replyTime" value="' + esc(acc.replyTime || '') + '" placeholder="Weekdays, within one business day"></label><button class="btn" type="submit">Save</button></form>' +
-    '<h2>Agents</h2><ul class="list" id="agent-list">' + (data.agents || []).map(function (a) {
-      return '<li>' + esc(a.name) + ' · ' + esc(a.chore) + ' · ' + esc(a.status) +
-        ' <button type="button" class="btn-ghost" data-status="' + esc(a.id) + '" data-next="' + (a.status === 'running' ? 'paused' : 'running') + '">' + (a.status === 'running' ? 'Pause' : 'Mark running') + '</button></li>';
-    }).join('') + '</ul>' +
-    '<form id="new-agent"><label class="field"><span>Name</span><input name="name" required></label><label class="field"><span>Chore</span><input name="chore" required></label><button class="btn" type="submit">Create agent</button></form>' +
-    '<p class="key-once" id="new-key" hidden></p>' +
-    '<h2>Note</h2><form id="note"><label class="field"><span>What happened</span><input name="summary" required></label><button class="btn" type="submit">Post to the activity log</button></form>' +
-    '<h2>Approvals</h2><ul class="list">' + (data.approvals || []).filter(function (a) { return a.status === 'pending'; }).map(function (a) {
-      return '<li>' + esc(a.summary) + ' <button class="btn" type="button" data-approve="' + esc(a.id) + '">Approve</button></li>';
-    }).join('') + '</ul>' +
-    '<h2>Requests</h2><ul class="list">' + (data.requests || []).map(function (r) {
-      return '<li>' + esc(r.summary) + ' · ' + esc(r.status) +
-        (r.status === 'open' ? ' <button class="btn-ghost" type="button" data-done="' + esc(r.id) + '">Mark done</button>' : '') + '</li>';
-    }).join('') + '</ul>' +
-    '<p><button class="btn-ghost" type="button" id="gen-report">Write this month’s report</button></p>' +
-    '<p class="error" id="acc-error" hidden></p>';
+    '<form id="reply" class="desk-fields"><label class="desk-field desk-field-wide"><span>Reply time shown on the account</span><input name="replyTime" value="' + esc(acc.replyTime || '') + '" placeholder="Weekdays, within one business day"></label>' +
+    '<div class="desk-field-wide portal-actions"><button class="btn" type="submit">Save</button><p class="saved" id="reply-ok" hidden>Saved.</p></div></form>' +
+    '<section class="portal-section"><h2>Agents</h2>' + (agents ? ledger(agents) : empty('No agents yet.')) +
+    '<form id="new-agent" class="desk-fields"><label class="desk-field"><span>Name</span><input name="name" required></label><label class="desk-field"><span>Chore</span><input name="chore" required></label><div class="desk-field-wide portal-actions"><button class="btn" type="submit">Create agent</button></div></form>' +
+    '<p class="key-once" id="new-key" hidden></p></section>' +
+    '<section class="portal-section"><h2>Note</h2><form id="note" class="desk-fields"><label class="desk-field desk-field-wide"><span>What happened</span><input name="summary" required></label><div class="desk-field-wide portal-actions"><button class="btn" type="submit">Post to the activity log</button></div></form></section>' +
+    '<section class="portal-section"><h2>Approvals</h2>' + (approvals ? ledger(approvals) : empty('Nothing is waiting.')) + '</section>' +
+    '<section class="portal-section"><h2>Requests</h2>' + (requests ? ledger(requests) : empty('No requests.')) + '</section>' +
+    '<div class="portal-actions"><button class="btn-quiet" type="button" id="gen-report">Write this month’s report</button></div>' +
+    '<p class="desk-status" id="acc-error" hidden></p>';
   const err = document.getElementById('acc-error');
   function show(e) { err.hidden = false; err.textContent = e.message; }
   document.getElementById('reply').addEventListener('submit', async function (event) {
     event.preventDefault();
+    err.hidden = true;
     try {
       await api('admin/reply', { method: 'POST', body: { accountId: id, replyTime: new FormData(event.target).get('replyTime') } });
+      document.getElementById('reply-ok').hidden = false;
     } catch (e) { show(e); }
   });
   document.getElementById('new-agent').addEventListener('submit', async function (event) {
     event.preventDefault();
+    err.hidden = true;
     const fd = new FormData(event.target);
     try {
       const created = await api('admin/agents', { method: 'POST', body: { accountId: id, name: fd.get('name'), chore: fd.get('chore') } });
@@ -512,6 +747,7 @@ async function renderAdminAccount(me) {
   });
   document.getElementById('note').addEventListener('submit', async function (event) {
     event.preventDefault();
+    err.hidden = true;
     try {
       await api('admin/notes', { method: 'POST', body: { accountId: id, summary: new FormData(event.target).get('summary') } });
       location.reload();
@@ -519,14 +755,18 @@ async function renderAdminAccount(me) {
   });
   main.querySelectorAll('[data-approve]').forEach(function (btn) {
     btn.addEventListener('click', async function () {
-      await api('admin/approvals', { method: 'POST', body: { accountId: id, id: btn.getAttribute('data-approve'), decision: 'approved' } });
-      location.reload();
+      try {
+        await api('admin/approvals', { method: 'POST', body: { accountId: id, id: btn.getAttribute('data-approve'), decision: 'approved' } });
+        location.reload();
+      } catch (e) { show(e); }
     });
   });
   main.querySelectorAll('[data-done]').forEach(function (btn) {
     btn.addEventListener('click', async function () {
-      await api('admin/requests', { method: 'POST', body: { accountId: id, id: btn.getAttribute('data-done') } });
-      location.reload();
+      try {
+        await api('admin/requests', { method: 'POST', body: { accountId: id, id: btn.getAttribute('data-done') } });
+        location.reload();
+      } catch (e) { show(e); }
     });
   });
   document.getElementById('gen-report').addEventListener('click', async function () {
@@ -538,31 +778,34 @@ async function renderAdminAccount(me) {
 }
 
 async function renderAvailability(me) {
-  const main = shell(me.user, 'Availability');
+  const main = shell(me.user, 'Availability', 'Leave a day blank to keep it closed. Hours look like 10:00.');
   const data = await api('admin/availability');
   const a = data.availability;
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const byDay = {};
   (a.windows || []).forEach(function (w) { byDay[w.dow] = w; });
   main.innerHTML =
-    '<form id="avail">' +
-    '<label class="field"><span>Time zone</span><input name="timeZone" value="' + esc(a.timeZone) + '" required></label>' +
-    '<label class="field"><span>Buffer, minutes</span><input name="bufferMin" type="number" min="0" max="120" value="' + esc(a.bufferMin) + '"></label>' +
-    '<label class="field"><span>Discovery, minutes</span><input name="discovery" type="number" min="10" max="180" value="' + esc(a.durations.discovery) + '"></label>' +
-    '<label class="field"><span>Checkpoint, minutes</span><input name="checkpoint" type="number" min="10" max="180" value="' + esc(a.durations.checkpoint) + '"></label>' +
-    '<label class="field"><span>Monthly, minutes</span><input name="monthly" type="number" min="10" max="180" value="' + esc(a.durations.monthly) + '"></label>' +
+    '<form id="avail" class="desk-fields">' +
+    '<label class="desk-field"><span>Time zone</span><input name="timeZone" value="' + esc(a.timeZone) + '" required></label>' +
+    '<label class="desk-field"><span>Buffer, minutes</span><input name="bufferMin" type="number" min="0" max="120" value="' + esc(a.bufferMin) + '"></label>' +
+    '<label class="desk-field"><span>Discovery, minutes</span><input name="discovery" type="number" min="10" max="180" value="' + esc(a.durations.discovery) + '"></label>' +
+    '<label class="desk-field"><span>Checkpoint, minutes</span><input name="checkpoint" type="number" min="10" max="180" value="' + esc(a.durations.checkpoint) + '"></label>' +
+    '<label class="desk-field"><span>Monthly, minutes</span><input name="monthly" type="number" min="10" max="180" value="' + esc(a.durations.monthly) + '"></label>' +
     days.map(function (name, i) {
       const w = byDay[i] || { start: '', end: '' };
-      return '<label class="field"><span>' + name + (w.start ? '' : ' (closed)') + '</span><span class="row"><input name="start-' + i + '" value="' + esc(w.start) + '" placeholder="closed" aria-label="' + name + ' start"> <input name="end-' + i + '" value="' + esc(w.end) + '" placeholder="closed" aria-label="' + name + ' end"></span></label>';
+      return '<label class="desk-field desk-field-wide"><span>' + name + (w.start ? '' : ' (closed)') + '</span><span class="day-times"><input name="start-' + i + '" value="' + esc(w.start) + '" placeholder="closed" aria-label="' + name + ' start"> <input name="end-' + i + '" value="' + esc(w.end) + '" placeholder="closed" aria-label="' + name + ' end"></span></label>';
     }).join('') +
-    '<label class="field"><span>Closed dates, one YYYY-MM-DD per line</span><textarea name="closed" rows="4">' +
+    '<label class="desk-field desk-field-wide"><span>Closed dates, one YYYY-MM-DD per line</span><textarea name="closed" rows="4">' +
     esc((a.exceptions || []).filter(function (e) { return e.closed; }).map(function (e) { return e.date; }).join('\n')) +
     '</textarea></label>' +
-    '<button class="btn" type="submit">Save</button><p class="error" id="avail-error" hidden></p><p class="muted" id="avail-ok" hidden>Saved.</p></form>';
+    '<div class="desk-field-wide portal-actions"><button class="btn" type="submit">Save</button><p class="saved" id="avail-ok" hidden>Saved.</p></div>' +
+    '<p class="desk-status desk-field-wide" id="avail-error" hidden></p></form>';
   document.getElementById('avail').addEventListener('submit', async function (event) {
     event.preventDefault();
     const err = document.getElementById('avail-error');
+    const ok = document.getElementById('avail-ok');
     err.hidden = true;
+    ok.hidden = true;
     const fd = new FormData(event.target);
     const windows = [];
     for (let i = 0; i < 7; i++) {
@@ -588,7 +831,7 @@ async function renderAvailability(me) {
           exceptions: exceptions,
         },
       });
-      document.getElementById('avail-ok').hidden = false;
+      ok.hidden = false;
     } catch (e) {
       err.hidden = false;
       err.textContent = e.message;
@@ -620,13 +863,17 @@ async function boot() {
     if (page === 'finish') return renderFinish();
     const me = await session();
     if (!me) return;
+    viewer = me;
     if (page.indexOf('admin') === 0 && !me.user.isAdmin) {
       location.href = '/portal/';
       return;
     }
     await PAGES[page](me);
   } catch (e) {
-    root.innerHTML = '<h1>Something went wrong.</h1><p class="error">' + esc(e.message || 'Try again.') + '</p>';
+    const main = document.getElementById('portal-main');
+    const html = '<p class="desk-status">' + esc(e.message || 'Try again.') + '</p>';
+    if (main) main.innerHTML = html;
+    else root.innerHTML = '<header class="page-head"><h1>Something went wrong.</h1></header>' + html;
   }
 }
 
