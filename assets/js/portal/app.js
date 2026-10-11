@@ -92,9 +92,12 @@ function accountLine(account) {
   return bits.join('. ') + '.';
 }
 
-function ledger(rows) {
+function ledger(rows, heads) {
   if (!rows) return '';
-  return '<figure class="record ledger"><table><tbody>' + rows + '</tbody></table></figure>';
+  const head = heads && heads.length
+    ? '<thead><tr>' + heads.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('') + '</tr></thead>'
+    : '';
+  return '<figure class="record ledger"><table>' + head + '<tbody>' + rows + '</tbody></table></figure>';
 }
 
 function ledgerRow(when, state, stateName, entry) {
@@ -110,6 +113,31 @@ function activityEntry(row) {
   return esc(row.summary) +
     (row.detail ? '<p class="ledger-detail">' + esc(row.detail) + '</p>' : '') +
     (row.approvedBy ? '<p class="ledger-detail">Signed off by ' + esc(row.approvedBy) + '.</p>' : '');
+}
+
+function personName(user) {
+  const raw = user && typeof user.name === 'string' ? user.name.trim() : '';
+  if (!raw || raw.indexOf('@') !== -1) return (user && user.email) || '';
+  if (raw !== raw.toLowerCase()) return raw;
+  return raw.replace(/\b[a-z]/g, function (letter) { return letter.toUpperCase(); });
+}
+
+function revealRail(nav) {
+  const current = nav.querySelector('[aria-current="page"]');
+  if (current) {
+    const railBox = nav.getBoundingClientRect();
+    const linkBox = current.getBoundingClientRect();
+    nav.scrollLeft += linkBox.left - railBox.left - (nav.clientWidth - linkBox.width) / 2;
+  }
+  function edges() {
+    nav.classList.toggle('rail-more-left', nav.scrollLeft > 4);
+    nav.classList.toggle('rail-more-right', nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 4);
+  }
+  if (!nav.dataset.edges) {
+    nav.dataset.edges = '1';
+    nav.addEventListener('scroll', edges, { passive: true });
+  }
+  edges();
 }
 
 function rail(user) {
@@ -143,20 +171,27 @@ function shell(user, title, sub) {
   const meta = document.getElementById('portal-top-meta');
   if (meta) {
     const office = viewer && viewer.account && viewer.account.office;
-    const who = office || (user && (user.name || user.email)) || '';
+    const who = office || personName(user);
     meta.innerHTML = (who ? '<span class="portal-who">' + esc(who) + '</span>' : '') +
       '<button type="button" class="top-signout" id="sign-out">Sign out</button>';
     document.getElementById('sign-out').addEventListener('click', signOut);
   }
-  root.innerHTML =
-    '<div class="portal-frame">' +
-    '<nav class="rail" aria-label="Account">' + rail(user) + '</nav>' +
-    '<div class="portal-body">' +
+  const head =
     '<header class="page-head"><h1>' + esc(title) + '</h1>' +
     (sub ? '<p>' + esc(sub) + '</p>' : '') +
-    '</header>' +
-    '<div id="portal-main"><p class="portal-loading">Loading.</p></div>' +
-    '</div></div>';
+    '</header><div id="portal-main"><p class="portal-loading">Loading.</p></div>';
+  const nav = document.getElementById('portal-nav');
+  if (nav) {
+    nav.hidden = false;
+    nav.innerHTML = rail(user);
+    revealRail(nav);
+    root.innerHTML = head;
+  } else {
+    root.innerHTML =
+      '<div class="portal-frame"><nav class="rail" aria-label="Portal">' + rail(user) + '</nav>' +
+      '<div class="portal-body">' + head + '</div></div>';
+    revealRail(root.querySelector('.rail'));
+  }
   return document.getElementById('portal-main');
 }
 
@@ -193,7 +228,7 @@ async function renderLogin() {
     '<p class="book-hp" hidden><input name="website" tabindex="-1" autocomplete="off" aria-hidden="true"></p>' +
     '<div class="desk-field-wide"><button class="btn" type="submit">Email me a link</button></div>' +
     '<p class="desk-status desk-field-wide" id="login-error" hidden></p>' +
-    '<p class="portal-or desk-field-wide" id="login-note"></p>' +
+    '<p class="portal-or desk-field-wide" id="login-note" role="status"></p>' +
     (cfg.configured ? '<div class="desk-field-wide"><button class="btn-quiet" type="button" id="google">Continue with Google</button></div>' : '') +
     '</form>' +
     '<p class="portal-or">No account yet? <a href="/book/">Book a 20-minute call</a>.</p>';
@@ -213,9 +248,7 @@ async function renderLogin() {
       });
       const data = await res.json().catch(function () { return {}; });
       if (!res.ok) throw new Error(data.error || 'We could not send that.');
-      document.getElementById('login-note').textContent = data.sent
-        ? 'The link is on its way. It works once.'
-        : 'No account for that address yet. Book a call, and we will invite you after it.';
+      document.getElementById('login-note').textContent = 'If that address has an account, a link is on its way. It works once.';
     } catch (e) {
       err.hidden = false;
       err.textContent = e.message;
@@ -293,7 +326,7 @@ function noAccount(main, me) {
 }
 
 async function renderDashboard(me) {
-  const main = shell(me.user, 'Today', me.account ? accountLine(me.account) : '');
+  const main = shell(me.user, 'Today', me.account ? accountLine(me.account) : 'What is waiting, and what the agents did.');
   if (!me.account) return noAccount(main, me);
   const data = await api('home');
   const upcoming = data.upcoming;
@@ -522,7 +555,7 @@ async function renderMeetings(me) {
 }
 
 async function renderBilling(me) {
-  const main = shell(me.user, 'Billing', me.account ? accountLine(me.account) : '');
+  const main = shell(me.user, 'Billing', me.account ? accountLine(me.account) : 'Invoices, the card, and the monthly charge.');
   if (!me.account) return noAccount(main, me);
   const status = new URLSearchParams(location.search).get('status');
   const banner = status === 'success'
@@ -555,7 +588,7 @@ async function renderBilling(me) {
 }
 
 async function renderAccount(me) {
-  const main = shell(me.user, 'Account', me.account ? me.account.kind : '');
+  const main = shell(me.user, 'Account', me.account ? me.account.kind : 'The people on this account, and who gets the weekly note.');
   if (!me.account) return noAccount(main, me);
   const owner = me.account.role === 'owner';
   const meMember = (me.account.members || []).find(function (m) { return m.email === me.user.email; });
@@ -631,7 +664,7 @@ async function renderReports(me) {
 }
 
 async function renderAdmin(me) {
-  const main = shell(me.user, 'Accounts', 'Create an account after a call. Leads from the form and the calendar land here.');
+  const main = shell(me.user, 'Admin', 'Create an account after a call. Leads from the form and the calendar land here.');
   const data = await api('admin/accounts');
   const accounts = (data.accounts || []).map(function (a) {
     return ledgerRow(
@@ -642,15 +675,20 @@ async function renderAdmin(me) {
     );
   }).join('');
   const leads = (data.leads || []).map(function (l) {
-    const source = l.source === 'book' ? 'Calendar' : (l.source ? 'Form' : '');
+    const source = l.source === 'book' ? 'Calendar' : (l.source ? 'Form' : 'Lead');
     const detail = [l.business, l.chore || l.intent].filter(Boolean).join('. ');
-    return ledgerRow(l.name || '', '', source, esc(l.email) + (detail ? '<p class="ledger-detail">' + esc(detail) + (l.source ? '.' : '') + '</p>' : ''));
+    const labelName = l.name || l.email || 'Lead';
+    const bits = [];
+    if (l.email && l.email !== labelName) bits.push(l.email);
+    if (detail) bits.push(detail);
+    const who = '<b>' + esc(labelName) + '</b>' + (bits.length ? '<p class="ledger-detail">' + esc(bits.join('. ')) + '.</p>' : '');
+    return ledgerRow(whenLabel(l.start || l.createdAt), '', source, who);
   }).join('');
   main.innerHTML =
     '<h2>New account</h2>' +
     '<form id="new-account" class="desk-fields">' +
     '<label class="desk-field"><span>Business</span><input name="office" required></label>' +
-    '<label class="desk-field"><span>Kind</span><select name="kind"><option>law firm</option><option>dental practice or med spa</option><option>real estate office</option><option>CPA firm</option><option>owner-run office</option></select></label>' +
+    '<label class="desk-field"><span>Kind</span><select name="kind" required><option value="" selected>Choose one</option><option>law firm</option><option>dental practice or med spa</option><option>real estate office</option><option>CPA firm</option><option>owner-run office</option></select></label>' +
     '<label class="desk-field"><span>Owner name</span><input name="name" required></label>' +
     '<label class="desk-field"><span>Owner email</span><input type="email" name="email" required></label>' +
     '<div class="desk-field-wide portal-actions"><button class="btn" type="submit">Create and invite</button></div>' +
@@ -659,7 +697,7 @@ async function renderAdmin(me) {
     (accounts ? ledger(accounts) : empty('No accounts yet. The first one is created with the form above, after a call.')) +
     '</section>' +
     '<section class="portal-section"><h2>Leads</h2>' +
-    (leads ? ledger(leads) : empty('No leads yet. Inquiries from the Studio form and bookings from the calendar appear here.')) +
+    (leads ? ledger(leads, ['When', 'Source', 'Lead']) : empty('No leads yet. Inquiries from the Studio form and bookings from the calendar appear here.')) +
     '</section>' +
     '<p class="portal-more"><a href="/portal/admin/availability/">Availability</a></p>';
   document.getElementById('new-account').addEventListener('submit', async function (event) {
@@ -798,7 +836,10 @@ async function renderAvailability(me) {
     '<label class="desk-field"><span>Monthly, minutes</span><input name="monthly" type="number" min="10" max="180" value="' + esc(a.durations.monthly) + '"></label>' +
     days.map(function (name, i) {
       const w = byDay[i] || { start: '', end: '' };
-      return '<label class="desk-field desk-field-wide"><span>' + name + (w.start ? '' : ' (closed)') + '</span><span class="day-times"><input name="start-' + i + '" value="' + esc(w.start) + '" placeholder="closed" aria-label="' + name + ' start"> <input name="end-' + i + '" value="' + esc(w.end) + '" placeholder="closed" aria-label="' + name + ' end"></span></label>';
+      return '<div class="desk-field desk-field-wide"><span>' + name + (w.start ? '' : ' (closed)') + '</span><span class="day-times">' +
+        '<label class="day-time"><span>Start</span><input type="time" name="start-' + i + '" value="' + esc(w.start) + '" aria-label="' + name + ' start"></label>' +
+        '<label class="day-time"><span>End</span><input type="time" name="end-' + i + '" value="' + esc(w.end) + '" aria-label="' + name + ' end"></label>' +
+        '</span></div>';
     }).join('') +
     '<label class="desk-field desk-field-wide"><span>Closed dates, one YYYY-MM-DD per line</span><textarea name="closed" rows="4">' +
     esc((a.exceptions || []).filter(function (e) { return e.closed; }).map(function (e) { return e.date; }).join('\n')) +

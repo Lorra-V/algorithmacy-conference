@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Accounts · Algorithmacy Studio</title>
+<title>Admin · Algorithmacy Studio</title>
 <meta name="robots" content="noindex" />
 <link rel="canonical" href="https://algorithmacy.org/portal/admin/" />
 <meta name="theme-color" content="#FBFBF9" />
@@ -23,9 +23,14 @@
     <a class="top-brand" href="/portal/">Algorithmacy Studio</a>
     <div class="top-meta" id="portal-top-meta"><span class="portal-loading">Loading.</span></div>
   </header>
-  <main class="portal" id="portal" data-page="admin">
-    <p class="portal-loading">Loading.</p>
-  </main>
+  <div class="portal">
+    <div class="portal-frame">
+      <nav class="rail" id="portal-nav" aria-label="Portal" hidden></nav>
+      <main class="portal-body" id="portal" data-page="admin">
+        <p class="portal-loading">Loading.</p>
+      </main>
+    </div>
+  </div>
 </div>
 <script type="module" src="/assets/js/portal/app.js"></script>
 </body>
