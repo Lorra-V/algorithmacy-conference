@@ -22,7 +22,7 @@ function timeLabel(iso, timeZone) {
   }).format(new Date(iso));
 }
 
-var CLOSED = 'The calendar is not open yet. Use the form, or write to roger@algorithmacy.org.';
+var CLOSED = 'The calendar is not open yet. Use the form, or write to topanga@algorithmacy.org.';
 
 function readJson(res) {
   return res.text().then(function (text) {
@@ -68,14 +68,14 @@ function mountBook(root) {
       draw(root, result.data);
     })
     .catch(function (err) {
-      root.innerHTML = '<p class="book-error">' + esc(err.message || 'The calendar is not open yet. Use the form, or write to roger@algorithmacy.org.') + '</p>';
+      root.innerHTML = '<p class="book-error">' + esc(err.message || 'The calendar is not open yet. Use the form, or write to topanga@algorithmacy.org.') + '</p>';
     });
 }
 
 function draw(root, data) {
   var days = group(data.slots || [], data.timeZone);
   if (!days.length) {
-    root.innerHTML = '<p class="book-note">No open times in the next two weeks. Write to roger@algorithmacy.org.</p>';
+    root.innerHTML = '<p class="book-note">No open times in the next two weeks. Write to topanga@algorithmacy.org.</p>';
     return;
   }
   var pickedDay = days[0].key;

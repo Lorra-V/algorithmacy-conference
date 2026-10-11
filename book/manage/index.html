@@ -3,28 +3,34 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Your call · Algorithmacy Studio</title>
+<title>Your call. Algorithmacy Studio</title>
 <meta name="robots" content="noindex" />
-<link rel="stylesheet" href="/design-system/colors_and_type.css" />
+<meta name="theme-color" content="#FBFBF9" />
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="/assets/css/submit.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400..600;1,8..60,400..600&family=Inter:wght@400;500;600&display=swap" />
 <link rel="stylesheet" href="/assets/css/studio.css" />
-<link rel="stylesheet" href="/assets/css/book.css" />
 </head>
 <body>
-<main class="stage">
-  <header class="studio-nav">
-    <a class="studio-brand" href="/studio">Algorithmacy Studio</a>
-    <nav class="studio-links" aria-label="Algorithmacy">
+<div class="sheet">
+  <header class="top">
+    <a class="top-brand" href="/studio">Algorithmacy Studio</a>
+    <nav class="top-links" aria-label="Algorithmacy">
       <a href="/studio">Studio</a>
-      <a href="/book/">Book</a>
+      <a href="/book/">Book a call</a>
       <a href="/portal/">Client login</a>
     </nav>
   </header>
-  <section class="section" aria-label="Manage your call">
-    <div id="book-manage"></div>
-  </section>
-</main>
+  <main>
+    <section class="page-lead">
+      <h1>Your call.</h1>
+    </section>
+    <section class="page-body" aria-label="Manage your call">
+      <div id="book-manage"></div>
+    </section>
+  </main>
+</div>
 <script type="module" src="/assets/js/book.js"></script>
 </body>
 </html>

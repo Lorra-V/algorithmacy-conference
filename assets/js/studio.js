@@ -1,10 +1,4 @@
 (function () {
-  var diagram = document.querySelector(".studio-field");
-  if (diagram && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    diagram.querySelectorAll("animate, animateMotion").forEach(function (node) { node.remove(); });
-    diagram.classList.add("is-still");
-  }
-
   var form = document.getElementById("desk-form");
   var line = document.getElementById("desk-line");
   var messageInput = document.getElementById("desk-message");
@@ -170,11 +164,11 @@
       return;
     }
     var month = people * hours * rate * 52 / 12;
-    var line = "At these numbers, the chores are about " + money(month) + " a month of staff time. Studio is $1,000 a month after the $5,000 setup.";
+    var line = "The chores are about " + money(month) + " a month of staff time. Studio is $1,000 a month after the $5,000 setup.";
     if (month < 1000) {
-      line += " The estimate is under the monthly fee. The reason to look at this is the time, not a cash saving.";
+      line += " That is under the monthly fee, so the reason to look at this is the time, not a cash saving.";
     }
-    line += " This is an estimate, not a promise that the firm will save that amount.";
+    line += " It is an estimate, not a promise that the firm will save that amount.";
     roiOut.textContent = line;
   }
   if (roi) {

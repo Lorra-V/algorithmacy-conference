@@ -3,38 +3,48 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Book a call · Algorithmacy Studio</title>
-<meta name="description" content="Book a 20-minute call about Algorithmacy Studio. The kind of office, the chores, and whether the engagement fits." />
+<title>Book a 20-minute call. Algorithmacy Studio</title>
+<meta name="description" content="Book a 20-minute call about Algorithmacy Studio. Your office, the chores, and whether the engagement fits. Nothing is connected or paid on the call." />
 <link rel="canonical" href="https://algorithmacy.org/book" />
-<meta name="theme-color" content="#07080A" />
-<link rel="stylesheet" href="/design-system/colors_and_type.css" />
+<meta name="theme-color" content="#FBFBF9" />
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="icon" href="/favicon.ico" sizes="any" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-<link rel="stylesheet" href="/assets/css/submit.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400..600;1,8..60,400..600&family=Inter:wght@400;500;600&display=swap" />
 <link rel="stylesheet" href="/assets/css/studio.css" />
-<link rel="stylesheet" href="/assets/css/book.css" />
 </head>
 <body>
-<main class="stage">
-  <header class="studio-nav">
-    <a class="studio-brand" href="/studio">Algorithmacy Studio</a>
-    <nav class="studio-links" aria-label="Algorithmacy">
+<div class="sheet">
+  <header class="top">
+    <a class="top-brand" href="/studio">Algorithmacy Studio</a>
+    <nav class="top-links" aria-label="Algorithmacy">
       <a href="/">Conference</a>
       <a href="/studio">Studio</a>
-      <a href="/book/" aria-current="page">Book</a>
+      <a href="/book/" aria-current="page">Book a call</a>
       <a href="/portal/">Client login</a>
     </nav>
   </header>
-  <section class="hero studio-hero">
-    <h1 class="display">Book a 20-minute call.</h1>
-    <p class="lede">The kind of office, the chores, and whether the engagement fits. Nothing is connected on the call. $5,000 to set up, then $1,000 a month, after a checkpoint at day 30.</p>
-  </section>
-  <section class="section" aria-label="Choose a time">
-    <div id="book-root" data-type="discovery"></div>
-    <p class="source-note">Or <a href="/studio#desk">write first</a>. Clients who already have an account <a href="/portal/">sign in</a>.</p>
-  </section>
-</main>
+  <main>
+    <section class="page-lead">
+      <h1>Book a 20-minute call.</h1>
+      <p>Your office, the chores, and whether the engagement fits. Nothing is connected and nothing is paid on the call. $5,000 to set up, then $1,000 a month after a checkpoint at day 30.</p>
+    </section>
+    <section class="page-body" aria-label="Choose a time">
+      <div id="book-root" data-type="discovery"></div>
+      <p class="small">Or <a href="/studio#desk">write first</a>. Clients who already have an account <a href="/portal/">sign in</a>.</p>
+    </section>
+  </main>
+  <footer class="foot">
+    <span>Algorithmacy. Write to <a href="mailto:topanga@algorithmacy.org">topanga@algorithmacy.org</a>.</span>
+    <nav aria-label="Legal">
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/cookies">Cookies</a>
+    </nav>
+  </footer>
+</div>
 <script type="module" src="/assets/js/book.js"></script>
 </body>
 </html>
