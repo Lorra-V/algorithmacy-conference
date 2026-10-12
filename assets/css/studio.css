@@ -515,6 +515,7 @@ a.visually-hidden:focus-visible{
   margin-top: 8px;
   max-width: var(--measure);
 }
+.person + .person{ margin-top: 32px; }
 .person img{ width: 88px; height: 88px; border-radius: 50%; object-fit: cover; filter: grayscale(1) contrast(1.05); }
 .person h3{ font-size: 1.25rem; }
 .person p{ margin-top: 6px; color: var(--ink-2); }
