@@ -7,6 +7,7 @@ const {
 } = require('../lib/portal/validate');
 const { routeParts } = require('../lib/portal/http');
 const { previewAccess } = require('../lib/portal/preview');
+const { slug, engineerInviteText } = require('../lib/portal/engineer');
 
 test('10:00 in New York is 14:00 UTC in July and 15:00 UTC in November', () => {
   const summer = zonedTimeToUtc(2026, 7, 15, 10, 0, 'America/New_York');
@@ -153,6 +154,22 @@ test('client preview is read-only and only for the engineer', () => {
   assert.deepEqual(previewAccess(engineer, 'GET', ' acct '), { id: 'acct', preview: true });
   assert.throws(() => previewAccess({ isAdmin: false }, 'GET', 'acct'), { status: 403 });
   assert.throws(() => previewAccess(engineer, 'POST', 'acct'), { status: 403, message: 'Client preview is read-only.' });
+});
+
+test('an engineer invite names the photo file and Roger’s block', () => {
+  assert.equal(slug('Lorraine Villaroel', 'lorraine@example.com'), 'lorraine-villaroel');
+  assert.equal(slug('', 'andre@example.com'), 'andre');
+  const text = engineerInviteText({
+    name: 'Joseph',
+    email: 'joseph@example.com',
+    link: 'https://algorithmacy.org/portal/login/?email=joseph%40example.com',
+  });
+  assert.match(text, /images\/speakers\/joseph\.jpg/);
+  assert.match(text, /The engineer/);
+  assert.match(text, /pull request/i);
+  assert.match(text, /Roger Hunt/);
+  assert.match(text, /authenticator/);
+  assert.doesNotMatch(text, /sk_/);
 });
 
 test('route parts come from the query or the url', () => {

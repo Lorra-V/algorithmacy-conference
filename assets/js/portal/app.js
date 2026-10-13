@@ -1,4 +1,5 @@
-import { api, authApi, esc, getAuth, getConfig, safeNext, setPreviewAccount, waitForUser } from './api.js';
+import { api, authApi, esc, getAuth, getConfig, safeNext, setPreviewAccount, storeMfa, waitForUser } from './api.js';
+import { ensureMfa } from './mfa-ui.js';
 import { SAMPLE_ID, bindSampleUser, resetSample, sampleAccount } from './sample.js';
 
 const PRIMARY = [
@@ -188,6 +189,7 @@ function viewMode() {
   if (!viewer || !isEngineer(viewer.user)) return 'client';
   const stored = storeGet(VIEW_KEY);
   if (stored === 'client' || stored === 'engineer') return stored;
+  if (viewer.user.engineerProfile === 'needed') return 'engineer';
   return viewer.account ? 'client' : 'engineer';
 }
 
@@ -268,9 +270,29 @@ function bindChrome(scope) {
   });
 }
 
+async function resetAuthenticator(button) {
+  const email = button.getAttribute('data-reset-mfa');
+  if (!email) return;
+  if (!window.confirm('Reset the authenticator for ' + email + '? They set up a new one the next time they sign in. Assistant connections for that address stop until they allow them again.')) return;
+  button.disabled = true;
+  try {
+    await api('admin/mfa/reset', { method: 'POST', body: { email: email } });
+    if (viewer && viewer.user && viewer.user.email === email) {
+      storeMfa('');
+      location.href = '/portal/';
+      return;
+    }
+    button.textContent = 'Cleared';
+  } catch (e) {
+    button.disabled = false;
+    button.textContent = e.message;
+  }
+}
+
 async function signOut() {
   const button = document.getElementById('sign-out');
   if (button) button.disabled = true;
+  storeMfa('');
   try {
     const auth = await getAuth();
     if (auth) await authApi().signOut(auth);
@@ -331,6 +353,7 @@ function shell(me, title, sub) {
     : '';
   const head =
     (me && me.user ? previewBar(me) : '') +
+    engineerTaskNotice(me) +
     crumb +
     '<header class="page-head"><h1>' + esc(title) + '</h1>' +
     (sub ? '<p>' + esc(sub) + '</p>' : '') +
@@ -357,7 +380,44 @@ function shell(me, title, sub) {
       void refresh();
     });
   }
+  const opened = document.getElementById('profile-opened');
+  if (opened) {
+    opened.addEventListener('click', async function () {
+      opened.disabled = true;
+      try {
+        await api('admin/engineers/profile', { method: 'POST', body: {} });
+        if (viewer && viewer.user) {
+          viewer.user.engineerProfile = 'opened';
+          viewer.user.engineerTask = null;
+        }
+        await refresh();
+      } catch (e) {
+        opened.disabled = false;
+        const err = document.getElementById('profile-error');
+        if (err) {
+          err.hidden = false;
+          err.textContent = e.message;
+        }
+      }
+    });
+  }
   return document.getElementById('portal-main');
+}
+
+function engineerTaskNotice(me) {
+  const user = me && me.user;
+  const task = user && user.engineerTask;
+  if (!task || viewMode() !== 'engineer') return '';
+  return '<section class="notice" id="engineer-task">' +
+    '<p><b>Add your photo and details.</b> Roger Hunt is already on the Studio page. Add yours the same way, in a pull request.</p>' +
+    '<ol class="engineer-steps">' +
+    '<li>Fork <a href="' + esc(task.repo) + '">the repository</a>.</li>' +
+    '<li>Add a square photo at <code>' + esc(task.photo) + '</code>.</li>' +
+    '<li>In <code>studio/index.html</code>, find “The engineer.” Copy Roger’s person block and put yours after it. Change the photo path, your name, two sentences about the work you do, and your LinkedIn link. <a href="' + esc(task.page) + '">His block is here.</a></li>' +
+    '<li>Open a pull request to main. Leave out client names, keys, and documents.</li>' +
+    '</ol>' +
+    '<div class="portal-actions"><button type="button" class="btn" id="profile-opened">I’ve opened the pull request</button></div>' +
+    '<p class="desk-status" id="profile-error" hidden></p></section>';
 }
 
 function setHead(title, sub) {
@@ -386,7 +446,7 @@ async function renderLogin() {
   const email = new URLSearchParams(location.search).get('email') || '';
   root.innerHTML =
     '<h1>Sign in to the Studio portal.</h1>' +
-    '<p class="portal-login-lead">An account is created after a call. Use the email the invite went to.</p>' +
+    '<p class="portal-login-lead">An account is created after a call. Use the email the invite went to. After the link, the portal asks for a code from an authenticator app.</p>' +
     (cfg.configured ? '' : '<p class="desk-status">Sign-in is not open yet. Write to <a href="mailto:topanga@algorithmacy.org">topanga@algorithmacy.org</a>.</p>') +
     '<form class="desk-fields" id="login-form">' +
     '<label class="desk-field desk-field-wide"><span>Email</span><input type="email" name="email" required autocomplete="email" value="' + esc(email) + '"></label>' +
@@ -456,7 +516,9 @@ async function renderFinish() {
     if (!email) throw new Error('The email address is required to finish signing in.');
     await fns.signInWithEmailLink(auth, email, location.href);
     localStorage.removeItem('studioEmail');
-    location.replace('/portal/');
+    const back = sessionStorage.getItem('studioOauthReturn') || '';
+    sessionStorage.removeItem('studioOauthReturn');
+    location.replace(back.indexOf('/oauth/authorize?') === 0 ? back : '/portal/');
   } catch (e) {
     note.textContent = e.message || 'That link did not work. Request another.';
   }
@@ -957,6 +1019,14 @@ async function renderAccount(me) {
   });
 }
 
+function connectionPanel(lead) {
+  const url = location.origin + '/api/studio-mcp';
+  return '<section class="portal-section"><h2>Connect an assistant</h2>' +
+    '<p class="role-note">' + esc(lead) + '</p>' +
+    '<p class="key-once">' + esc(url) + '</p>' +
+    '<p class="role-note">Paste that URL into Claude, Cursor, or Grok. It will ask you to sign in. There is no key to copy.</p></section>';
+}
+
 async function renderSettings(me) {
   const main = shell(me, 'Settings', 'The rest of the account.');
   if (!me.account) return noAccount(main, me);
@@ -967,7 +1037,8 @@ async function renderSettings(me) {
     ['/portal/reports/', 'Monthly report', 'The written summary of the month.'],
     ['/portal/account/', 'People', 'Who can open this account, and who gets the weekly note.'],
   ];
-  main.innerHTML = '<nav class="settings-list" aria-label="Settings">' + items.map(function (item) {
+  main.innerHTML = connectionPanel('Claude, Cursor, Grok, or any other assistant that signs in. Allow it for this office. It can see this office and do what you can do here. It cannot pay, and it cannot open another office.') +
+    '<nav class="settings-list" aria-label="Settings">' + items.map(function (item) {
     return '<a href="' + item[0] + '"><span>' + item[1] + '</span><small>' + item[2] + '</small></a>';
   }).join('') + '</nav>';
 }
@@ -1027,8 +1098,26 @@ async function renderAdmin(me) {
     const who = '<b>' + esc(labelName) + '</b>' + (bits.length ? '<p class="ledger-detail">' + esc(bits.join('. ')) + '.</p>' : '');
     return ledgerRow(whenLabel(l.start || l.createdAt), '', source, who);
   }).join('');
+  const engineers = (data.engineers || []).map(function (row) {
+    const state = row.status !== 'claimed' ? 'Invited' : (row.profile === 'opened' ? 'Pull request opened' : 'Joined');
+    return ledgerRow(
+      row.name || row.email,
+      '',
+      state,
+      esc(row.email) + ' <button type="button" class="btn-quiet" data-reset-mfa="' + esc(row.email) + '">Reset authenticator</button>',
+    );
+  }).join('');
   main.innerHTML =
     '<p class="notice">Harbor &amp; Finch is a sample office, with agents, approvals, meetings, and a report. <button type="button" id="open-sample">Open it as the client</button></p>' +
+    '<h2>Invite an engineer</h2>' +
+    '<p class="role-note">They can open every account. The invite tells them to add a photo and a short bio in a pull request, the way Roger is already on the Studio page.</p>' +
+    '<form id="invite-engineer" class="desk-fields">' +
+    '<label class="desk-field"><span>Name</span><input name="name" required></label>' +
+    '<label class="desk-field"><span>Email</span><input type="email" name="email" required></label>' +
+    '<div class="desk-field-wide portal-actions"><button class="btn" type="submit">Send invite</button></div>' +
+    '<p class="desk-status desk-field-wide" id="engineer-error" hidden></p></form>' +
+    (engineers ? ledger(engineers, ['Name', 'Status', 'Email']) : empty('No engineers invited yet.')) +
+    connectionPanel('Connect Claude, Cursor, or Grok to this engineer account. When it asks you to sign in, allow it as an engineer. It can open the offices, set up agents, and post reports. It cannot pay, and it cannot invite another engineer.') +
     '<h2>New account</h2>' +
     '<form id="new-account" class="desk-fields">' +
     '<label class="desk-field"><span>Business</span><input name="office" required></label>' +
@@ -1049,6 +1138,26 @@ async function renderAdmin(me) {
     storeSet(PREVIEW_KEY, SAMPLE_ID);
     chromeKey = '';
     void go('/portal/');
+  });
+  main.querySelectorAll('[data-reset-mfa]').forEach(function (button) {
+    button.addEventListener('click', function () { void resetAuthenticator(button); });
+  });
+  document.getElementById('invite-engineer').addEventListener('submit', async function (event) {
+    event.preventDefault();
+    const err = document.getElementById('engineer-error');
+    err.hidden = true;
+    const fd = new FormData(event.target);
+    try {
+      await api('admin/engineers', {
+        method: 'POST',
+        body: { name: fd.get('name'), email: fd.get('email') },
+      });
+      event.target.reset();
+      await refresh();
+    } catch (e) {
+      err.hidden = false;
+      err.textContent = e.message;
+    }
   });
   document.getElementById('new-account').addEventListener('submit', async function (event) {
     event.preventDefault();
@@ -1098,9 +1207,14 @@ async function renderAdminAccount(me) {
       : '';
     return ledgerRow(whenLabel(r.createdAt), statusClass(r.status), label(r.status), esc(r.summary) + done);
   }).join('');
+  const people = (acc.members || []).filter(function (m) { return m && m.email; });
+  const resets = people.map(function (m) {
+    return '<div class="portal-actions"><button type="button" class="btn-quiet" data-reset-mfa="' + esc(m.email) + '">Reset authenticator for ' + esc(m.email) + '</button></div>';
+  }).join('');
   main.innerHTML =
     '<form id="reply" class="desk-fields"><label class="desk-field desk-field-wide"><span>Reply time shown on the account</span><input name="replyTime" value="' + esc(acc.replyTime || '') + '" placeholder="Weekdays, within one business day"></label>' +
     '<div class="desk-field-wide portal-actions"><button class="btn" type="submit">Save</button><p class="saved" id="reply-ok" hidden>Saved.</p></div></form>' +
+    (resets ? '<section class="portal-section"><h2>Authenticator</h2><p class="role-note">If someone loses the authenticator and the backup codes, clear it. They set up a new one the next time they sign in.</p>' + resets + '</section>' : '') +
     '<section class="portal-section"><h2>Agents</h2>' + (agents ? ledger(agents) : empty('No agents yet.')) +
     '<form id="new-agent" class="desk-fields"><label class="desk-field"><span>Name</span><input name="name" required></label><label class="desk-field"><span>Chore</span><input name="chore" required></label><div class="desk-field-wide portal-actions"><button class="btn" type="submit">Create agent</button></div></form>' +
     '<p class="key-once" id="new-key" hidden></p></section>' +
@@ -1111,6 +1225,9 @@ async function renderAdminAccount(me) {
     '<p class="desk-status" id="acc-error" hidden></p>';
   const err = document.getElementById('acc-error');
   function show(e) { err.hidden = false; err.textContent = e.message; }
+  main.querySelectorAll('[data-reset-mfa]').forEach(function (button) {
+    button.addEventListener('click', function () { void resetAuthenticator(button); });
+  });
   document.getElementById('reply').addEventListener('submit', async function (event) {
     event.preventDefault();
     err.hidden = true;
@@ -1239,6 +1356,14 @@ async function renderAvailability(me) {
 }
 
 function showError(e) {
+    if (e && e.mfa && root) {
+    storeMfa('');
+    setPreviewAccount('');
+    void ensureMfa(root, { mfa: e.mfa, user: viewer && viewer.user }).then(function () {
+      location.reload();
+    });
+    return;
+  }
   const main = document.getElementById('portal-main');
   const html = '<p class="desk-status">' + esc(e.message || 'Try again.') + '</p>';
   if (main) main.innerHTML = html;
@@ -1393,8 +1518,13 @@ async function boot() {
   try {
     if (page === 'login') return renderLogin();
     if (page === 'finish') return renderFinish();
-    const me = await session();
+    let me = await session();
     if (!me) return;
+    if (me.mfa && me.mfa !== 'ok') {
+      await ensureMfa(root, me);
+      me = await session();
+      if (!me || (me.mfa && me.mfa !== 'ok')) return;
+    }
     viewer = me;
     bindSampleUser(me.user.email, personName(me.user));
     document.addEventListener('click', onPortalClick);

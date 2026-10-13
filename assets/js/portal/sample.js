@@ -215,6 +215,9 @@ export function sampleApi(path, opts) {
   const parsed = splitPath(path);
   const route = parsed.route;
 
+  if (method === 'POST' && route === 'connector') {
+    return Promise.resolve({ notice: 'A sample office cannot connect an assistant. Use a real account.' });
+  }
   if (method === 'GET' && route === 'me') {
     return Promise.resolve({ user: null, account: sampleAccount() });
   }

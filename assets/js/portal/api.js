@@ -41,17 +41,31 @@ export function authApi() {
   return authFns;
 }
 
+export function storeMfa(token) {
+  try {
+    if (token) sessionStorage.setItem('studioMfa', token);
+    else sessionStorage.removeItem('studioMfa');
+  } catch (e) { /* private mode */ }
+}
+
+function readMfa() {
+  try { return sessionStorage.getItem('studioMfa') || ''; }
+  catch (e) { return ''; }
+}
+
 export async function api(path, opts) {
   const options = opts || {};
   if (previewAccountId === SAMPLE_ID) return sampleApi(path, options);
   const auth = await getAuth();
   const user = auth && auth.currentUser;
   const token = user ? await user.getIdToken() : '';
+  const mfa = readMfa();
   const res = await fetch('/api/portal/' + previewPath(path), {
     method: options.method || 'GET',
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: 'Bearer ' + token } : {}),
+      ...(mfa ? { 'X-Studio-Mfa': mfa } : {}),
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
@@ -59,6 +73,7 @@ export async function api(path, opts) {
   if (!res.ok) {
     const err = new Error(data.error || 'Something went wrong.');
     err.status = res.status;
+    if (data.mfa) err.mfa = data.mfa;
     throw err;
   }
   return data;

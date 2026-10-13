@@ -308,9 +308,16 @@ a.visually-hidden:focus-visible{
 }
 .part-body > .small{ margin-top: 18px; }
 
+.part-body code,
+.call code{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.86em;
+}
 @media (min-width: 1100px){
   .lead{ grid-template-columns: minmax(0, 11fr) minmax(0, 13fr); gap: 64px; align-items: start; padding-top: 72px; }
   .lead h1{ font-size: clamp(2.5rem, 4.3vw, 3.9rem); }
+  .lead.lead-single{ grid-template-columns: minmax(0, 1fr); }
+  .lead.lead-single h1{ max-width: 16ch; }
 }
 @media (min-width: 900px){
   .part{ grid-template-columns: 220px minmax(0, 1fr); }

@@ -376,6 +376,20 @@
 }
 .portal-actions:first-child{ margin-top: 0; }
 
+.engineer-steps{
+  margin: 12px 0 0;
+  padding: 0 0 0 1.2em;
+  max-width: 62ch;
+  font-family: var(--sans);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+.engineer-steps li + li{ margin-top: 6px; }
+.notice code{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
+
 .notice{
   margin: 0 0 18px;
   padding: 14px 16px;
@@ -480,6 +494,7 @@ a.book-slot{ display: inline-block; text-decoration: none; }
 a.book-slot.is-on,
 a.book-slot[aria-current="page"]{ color: #fff; background: var(--blueback); border-color: var(--blueback); }
 
+pre.key-once{ white-space: pre-wrap; }
 .key-once{
   margin: 16px 0;
   padding: 14px 16px;
@@ -530,6 +545,36 @@ a.book-slot[aria-current="page"]{ color: #fff; background: var(--blueback); bord
   color: var(--ink-2);
 }
 .portal-or:empty{ display: none; }
+.mfa-panel{ max-width: 28rem; }
+.mfa-panel h1{
+  font-size: clamp(2rem, 4.5vw, 2.75rem);
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+}
+.mfa-qr{
+  display: block;
+  width: 196px;
+  height: 196px;
+  margin: 20px 0 8px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid var(--rule);
+}
+.mfa-secret{
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  line-height: 1.6;
+}
+.mfa-codes{
+  margin: 16px 0 8px;
+  padding: 0;
+  list-style: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1rem;
+  line-height: 1.8;
+}
 [hidden]{ display: none !important; }
 
 .top-links a{

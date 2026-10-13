@@ -27,7 +27,11 @@
     }
   ],
   "rewrites": [
-    { "source": "/api/portal/(.+)", "destination": "/api/portal?path=$1" }
+    { "source": "/api/portal/(.+)", "destination": "/api/portal?path=$1" },
+    { "source": "/.well-known/oauth-authorization-server", "destination": "/api/oauth-metadata?doc=as" },
+    { "source": "/.well-known/oauth-authorization-server/(.*)", "destination": "/api/oauth-metadata?doc=as" },
+    { "source": "/.well-known/oauth-protected-resource", "destination": "/api/oauth-metadata?doc=resource" },
+    { "source": "/.well-known/oauth-protected-resource/(.*)", "destination": "/api/oauth-metadata?doc=resource" }
   ],
   "crons": [
     { "path": "/api/cron?job=reminders", "schedule": "*/15 * * * *" },
