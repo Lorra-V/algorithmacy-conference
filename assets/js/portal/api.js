@@ -1,8 +1,23 @@
+import { SAMPLE_ID, sampleApi } from './sample.js';
+
 const CDN = 'https://www.gstatic.com/firebasejs/12.17.1/';
 
 let firebaseAuth = null;
 let authFns = null;
 let cachedConfig = null;
+let previewAccountId = '';
+
+export function setPreviewAccount(id) {
+  previewAccountId = id ? String(id) : '';
+}
+
+function previewPath(path) {
+  const clean = String(path || '').replace(/^\//, '');
+  if (!previewAccountId) return clean;
+  if (clean === 'admin' || clean.startsWith('admin/') || clean.startsWith('admin?')) return clean;
+  const joiner = clean.indexOf('?') === -1 ? '?' : '&';
+  return clean + joiner + 'as=' + encodeURIComponent(previewAccountId);
+}
 
 export async function getConfig() {
   if (cachedConfig) return cachedConfig;
@@ -28,10 +43,11 @@ export function authApi() {
 
 export async function api(path, opts) {
   const options = opts || {};
+  if (previewAccountId === SAMPLE_ID) return sampleApi(path, options);
   const auth = await getAuth();
   const user = auth && auth.currentUser;
   const token = user ? await user.getIdToken() : '';
-  const res = await fetch('/api/portal/' + path.replace(/^\//, ''), {
+  const res = await fetch('/api/portal/' + previewPath(path), {
     method: options.method || 'GET',
     headers: {
       'Content-Type': 'application/json',

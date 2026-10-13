@@ -6,6 +6,7 @@ const {
   validateBook, validateEvent, validateAvailability, validateAccountCreate,
 } = require('../lib/portal/validate');
 const { routeParts } = require('../lib/portal/http');
+const { previewAccess } = require('../lib/portal/preview');
 
 test('10:00 in New York is 14:00 UTC in July and 15:00 UTC in November', () => {
   const summer = zonedTimeToUtc(2026, 7, 15, 10, 0, 'America/New_York');
@@ -144,6 +145,14 @@ test('the public config route answers without Firebase', async () => {
   assert.equal(res.statusCode, 200);
   assert.equal(json.configured, false);
   assert.equal(json.firebase, null);
+});
+
+test('client preview is read-only and only for the engineer', () => {
+  const engineer = { isAdmin: true, email: 'roger@algorithmacy.org' };
+  assert.deepEqual(previewAccess(engineer, 'GET', ''), { id: '', preview: false });
+  assert.deepEqual(previewAccess(engineer, 'GET', ' acct '), { id: 'acct', preview: true });
+  assert.throws(() => previewAccess({ isAdmin: false }, 'GET', 'acct'), { status: 403 });
+  assert.throws(() => previewAccess(engineer, 'POST', 'acct'), { status: 403, message: 'Client preview is read-only.' });
 });
 
 test('route parts come from the query or the url', () => {

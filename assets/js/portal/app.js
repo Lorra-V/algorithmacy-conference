@@ -1,22 +1,20 @@
-import { api, authApi, esc, getAuth, getConfig, safeNext, waitForUser } from './api.js';
+import { api, authApi, esc, getAuth, getConfig, safeNext, setPreviewAccount, waitForUser } from './api.js';
+import { SAMPLE_ID, bindSampleUser, resetSample, sampleAccount } from './sample.js';
 
-const GROUPS = [
-  [['dashboard', '/portal/', 'Today']],
-  [
-    ['activity', '/portal/activity/', 'Activity'],
-    ['agents', '/portal/agents/', 'Agents'],
-    ['approvals', '/portal/approvals/', 'Approvals'],
-    ['requests', '/portal/requests/', 'Requests'],
-  ],
-  [
-    ['meetings', '/portal/meetings/', 'Meetings'],
-    ['reports', '/portal/reports/', 'Reports'],
-  ],
-  [
-    ['billing', '/portal/billing/', 'Billing'],
-    ['account', '/portal/account/', 'Account'],
-  ],
+const PRIMARY = [
+  ['dashboard', '/portal/', 'Agents'],
+  ['billing', '/portal/billing/', 'Subscription'],
+  ['meetings', '/portal/meetings/', 'Book a call'],
 ];
+
+const SETTINGS_PAGES = {
+  settings: true,
+  activity: true,
+  approvals: true,
+  requests: true,
+  reports: true,
+  account: true,
+};
 
 const LABELS = {
   did: 'Done',
@@ -53,8 +51,37 @@ const LABELS = {
 };
 
 const root = document.getElementById('portal');
-const page = root ? root.dataset.page : '';
+let page = root ? root.dataset.page : '';
 let viewer = null;
+let chromeKey = '';
+let rendering = false;
+let queued = null;
+
+const ROUTES = [
+  ['/portal/admin/availability/', 'admin-availability', 'Availability'],
+  ['/portal/admin/account/', 'admin-account', 'Account'],
+  ['/portal/admin/', 'admin', 'Accounts'],
+  ['/portal/settings/', 'settings', 'Settings'],
+  ['/portal/activity/', 'activity', 'Activity'],
+  ['/portal/agents/', 'agents', 'Agents'],
+  ['/portal/approvals/', 'approvals', 'Approvals'],
+  ['/portal/requests/', 'requests', 'Requests'],
+  ['/portal/meetings/', 'meetings', 'Book a call'],
+  ['/portal/reports/', 'reports', 'Monthly report'],
+  ['/portal/billing/', 'billing', 'Subscription'],
+  ['/portal/account/', 'account', 'People'],
+  ['/portal/', 'dashboard', 'Agents'],
+];
+
+const ENGINEER_PAGES = {
+  admin: true,
+  'admin-account': true,
+  'admin-availability': true,
+};
+
+const VIEW_KEY = 'studioView';
+const PREVIEW_KEY = 'studioPreview';
+const memoryStore = {};
 
 function label(value) {
   if (value == null || value === '') return '';
@@ -140,21 +167,105 @@ function revealRail(nav) {
   edges();
 }
 
-function rail(user) {
-  const groups = GROUPS.slice();
-  if (user && user.isAdmin) {
-    groups.push([
-      ['admin', '/portal/admin/', 'Admin'],
-      ['admin-availability', '/portal/admin/availability/', 'Availability'],
-    ]);
+function storeGet(key) {
+  try {
+    const value = sessionStorage.getItem(key);
+    if (value != null) return value;
+  } catch (e) { /* private mode */ }
+  return memoryStore[key] || '';
+}
+
+function storeSet(key, value) {
+  memoryStore[key] = value;
+  try { sessionStorage.setItem(key, value); } catch (e) { /* private mode */ }
+}
+
+function isEngineer(user) {
+  return !!(user && user.isAdmin);
+}
+
+function viewMode() {
+  if (!viewer || !isEngineer(viewer.user)) return 'client';
+  const stored = storeGet(VIEW_KEY);
+  if (stored === 'client' || stored === 'engineer') return stored;
+  return viewer.account ? 'client' : 'engineer';
+}
+
+function normalizePath(pathname) {
+  if (!pathname) return '/';
+  return pathname.endsWith('/') ? pathname : pathname + '/';
+}
+
+function matchRoute(pathname) {
+  const path = normalizePath(pathname);
+  for (let i = 0; i < ROUTES.length; i++) {
+    if (path === ROUTES[i][0]) return ROUTES[i];
   }
-  return groups.map(function (group, index) {
-    const links = group.map(function (item) {
-      const current = item[0] === page || (item[0] === 'admin' && page === 'admin-account');
-      return '<a href="' + item[1] + '"' + (current ? ' aria-current="page"' : '') + '>' + item[2] + '</a>';
-    }).join('');
-    return (index ? '<span class="rail-break"></span>' : '') + links;
-  }).join('');
+  return null;
+}
+
+function destinationFor(route) {
+  if (!route || !viewer) return route;
+  const office = !!ENGINEER_PAGES[route[1]];
+  const engineer = isEngineer(viewer.user) && viewMode() === 'engineer';
+  if (isEngineer(viewer.user) && engineer && !office) return matchRoute('/portal/admin/');
+  if (isEngineer(viewer.user) && !engineer && office) return matchRoute('/portal/');
+  if (!isEngineer(viewer.user) && office) return matchRoute('/portal/');
+  return route;
+}
+
+function navCurrent(id) {
+  if (id === 'settings') return !!SETTINGS_PAGES[page];
+  if (id === 'dashboard' || id === 'agents') return page === 'dashboard' || page === 'agents';
+  if (id === 'admin') return page === 'admin' || page === 'admin-account';
+  return id === page;
+}
+
+function railLink(item) {
+  const current = navCurrent(item[0]);
+  return '<a href="' + item[1] + '" data-page="' + item[0] + '"' + (current ? ' aria-current="page"' : '') + '>' + item[2] + '</a>';
+}
+
+function rail(user) {
+  if (isEngineer(user) && viewMode() === 'engineer') {
+    return [
+      ['admin', '/portal/admin/', 'Accounts'],
+      ['admin-availability', '/portal/admin/availability/', 'Availability'],
+    ].map(railLink).join('');
+  }
+  return PRIMARY.map(railLink).join('');
+}
+
+function markCurrent() {
+  document.querySelectorAll('#portal-nav a[data-page], #portal-top-meta a[data-page]').forEach(function (link) {
+    if (navCurrent(link.getAttribute('data-page'))) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  });
+}
+
+function viewSwitchHtml() {
+  if (!viewer || !isEngineer(viewer.user)) return '';
+  const mode = viewMode();
+  return '<span class="view-switch" role="group" aria-label="Which portal">' +
+    '<button type="button" data-view="engineer"' + (mode === 'engineer' ? ' aria-pressed="true"' : ' aria-pressed="false"') + '>Engineer</button>' +
+    '<button type="button" data-view="client"' + (mode === 'client' ? ' aria-pressed="true"' : ' aria-pressed="false"') + '>Client</button>' +
+    '</span>';
+}
+
+function bindChrome(scope) {
+  const sign = scope.querySelector('#sign-out');
+  if (sign) sign.addEventListener('click', signOut);
+  scope.querySelectorAll('[data-view]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      const mode = button.getAttribute('data-view');
+      if (mode !== 'engineer' && mode !== 'client') return;
+      if (viewMode() === mode) return;
+      storeSet(VIEW_KEY, mode);
+      chromeKey = '';
+      setPreviewAccount('');
+      void go(mode === 'engineer' ? '/portal/admin/' : '/portal/');
+    });
+  });
 }
 
 async function signOut() {
@@ -167,30 +278,84 @@ async function signOut() {
   location.href = '/portal/login/';
 }
 
-function shell(user, title, sub) {
+function previewBar(me) {
+  if (!me || !me.user || !isEngineer(me.user) || viewMode() !== 'client') return '';
+  const choices = me.previewChoices || [];
+  if (!choices.length) return '';
+  const current = me.account && me.account.id;
+  const options = choices.map(function (account) {
+    return '<option value="' + esc(account.id) + '"' + (account.id === current ? ' selected' : '') + '>' + esc(account.office) + '</option>';
+  }).join('');
+  let note = 'This account is yours. Changes here are live.';
+  if (me.account && me.account.sample) note = 'Sample office. Try every page. Changes stay in this browser.';
+  else if (me.account && me.account.preview) note = 'Read only. This is what that client sees.';
+  const reset = me.account && me.account.sample ? ' <button type="button" id="reset-sample">Reset sample</button>' : '';
+  return '<div class="preview-bar"><label>Office <select id="preview-account">' + options + '</select></label><p>' + note + reset + '</p></div>';
+}
+
+function paintChrome(user) {
+  const nav = document.getElementById('portal-nav');
+  if (!nav) return;
+  const mode = viewer && isEngineer(viewer.user) ? viewMode() : 'client';
+  const key = (user && user.email ? user.email : '') + '|' + mode;
+  if (chromeKey === key) {
+    markCurrent();
+    return;
+  }
+  chromeKey = key;
   const meta = document.getElementById('portal-top-meta');
   if (meta) {
-    const office = viewer && viewer.account && viewer.account.office;
-    const who = office || personName(user);
+    const who = isEngineer(user)
+      ? personName(user)
+      : ((viewer && viewer.account && viewer.account.office) || personName(user));
+    const settingsLink = (!isEngineer(user) || viewMode() === 'client')
+      ? '<a class="top-settings" href="/portal/settings/" data-page="settings"' + (SETTINGS_PAGES[page] ? ' aria-current="page"' : '') + '>Settings</a>'
+      : '';
     meta.innerHTML = (who ? '<span class="portal-who">' + esc(who) + '</span>' : '') +
+      viewSwitchHtml() +
+      settingsLink +
       '<button type="button" class="top-signout" id="sign-out">Sign out</button>';
-    document.getElementById('sign-out').addEventListener('click', signOut);
+    bindChrome(meta);
   }
+  nav.hidden = false;
+  nav.innerHTML = rail(user);
+  revealRail(nav);
+}
+
+function shell(me, title, sub) {
+  const user = me && me.user ? me.user : me;
+  const nav = document.getElementById('portal-nav');
+  if (nav) paintChrome(user);
+  const crumb = SETTINGS_PAGES[page] && page !== 'settings'
+    ? '<p class="settings-back"><a href="/portal/settings/">Settings</a></p>'
+    : '';
   const head =
+    (me && me.user ? previewBar(me) : '') +
+    crumb +
     '<header class="page-head"><h1>' + esc(title) + '</h1>' +
     (sub ? '<p>' + esc(sub) + '</p>' : '') +
     '</header><div id="portal-main"><p class="portal-loading">Loading.</p></div>';
-  const nav = document.getElementById('portal-nav');
   if (nav) {
-    nav.hidden = false;
-    nav.innerHTML = rail(user);
-    revealRail(nav);
     root.innerHTML = head;
   } else {
     root.innerHTML =
       '<div class="portal-frame"><nav class="rail" aria-label="Portal">' + rail(user) + '</nav>' +
       '<div class="portal-body">' + head + '</div></div>';
     revealRail(root.querySelector('.rail'));
+  }
+  const select = document.getElementById('preview-account');
+  if (select) {
+    select.addEventListener('change', function () {
+      storeSet(PREVIEW_KEY, select.value);
+      void refresh();
+    });
+  }
+  const reset = document.getElementById('reset-sample');
+  if (reset) {
+    reset.addEventListener('click', function () {
+      resetSample();
+      void refresh();
+    });
   }
   return document.getElementById('portal-main');
 }
@@ -314,10 +479,9 @@ async function session() {
 }
 
 function noAccount(main, me) {
-  if (me && me.user && me.user.isAdmin) {
+  if (me && isEngineer(me.user)) {
     main.innerHTML =
-      '<p class="portal-empty">You are signed in as the engineer. This address is not on a client account, so the client pages are empty. The work is on the admin pages.</p>' +
-      '<div class="portal-actions"><a class="btn" href="/portal/admin/">Accounts and leads</a> <a class="btn-quiet" href="/portal/admin/availability/">Availability</a></div>';
+      '<p class="portal-empty">This sign-in is the engineer. Choose Client, then Harbor &amp; Finch, to walk through the sample office.</p>';
     return;
   }
   main.innerHTML =
@@ -325,37 +489,101 @@ function noAccount(main, me) {
     '<div class="portal-actions"><a class="btn" href="/book/">Book a 20-minute call</a></div>';
 }
 
-async function renderDashboard(me) {
-  const main = shell(me.user, 'Today', me.account ? accountLine(me.account) : 'What is waiting, and what the agents did.');
+function byNewest(rows, key) {
+  return (rows || []).slice().sort(function (a, b) {
+    return String(b[key] || '').localeCompare(String(a[key] || ''));
+  });
+}
+
+function zoneName(timeZone) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: timeZone || undefined,
+      timeZoneName: 'long',
+    }).formatToParts(new Date());
+    const hit = parts.find(function (part) { return part.type === 'timeZoneName'; });
+    return hit ? hit.value : (timeZone || '');
+  } catch (e) {
+    return timeZone || '';
+  }
+}
+
+function lastForAgent(rows, agentId) {
+  const mine = byNewest(rows, 'ts').filter(function (row) { return row.agentId === agentId; });
+  return mine[0] || null;
+}
+
+function agentName(agents, id) {
+  const found = (agents || []).find(function (agent) { return agent.id === id; });
+  return found ? found.name : '';
+}
+
+function agentCard(agent, rows) {
+  const last = lastForAgent(rows, agent.id);
+  const pause = agent.pauseNote || (agent.status === 'paused' ? 'Paused. It does not post until it is running again.' : '');
+  const lastLine = last
+    ? 'Last report ' + whenLabel(last.ts) + '. ' + last.summary
+    : 'No report yet.';
+  return '<article class="record piece">' +
+    '<header class="piece-head"><h2>' + esc(agent.name) + '</h2><span class="status ' + statusClass(agent.status) + '">' + esc(label(agent.status)) + '</span></header>' +
+    '<p>' + esc(agent.chore) + '</p>' +
+    (pause ? '<p class="ledger-detail">' + esc(pause) + '</p>' : '') +
+    '<p class="ledger-detail">' + esc(lastLine) + '</p></article>';
+}
+
+function reportCard(row, agents) {
+  const name = agentName(agents, row.agentId);
+  const meta = [whenLabel(row.ts), name || 'Your engineer'].filter(Boolean).join(' · ');
+  const flag = row.type && row.type !== 'did'
+    ? '<span class="status ' + statusClass(row.type) + '">' + esc(label(row.type)) + '</span>'
+    : '';
+  return '<article class="record piece">' +
+    '<header class="piece-head"><p class="piece-meta">' + esc(meta) + '</p>' + flag + '</header>' +
+    '<p>' + esc(row.summary) + '</p>' +
+    (row.detail ? '<p class="ledger-detail">' + esc(row.detail) + '</p>' : '') +
+    '</article>';
+}
+
+function approvalNotice(count) {
+  if (!count) return '';
+  if (count === 1) {
+    return '<p class="notice">One draft is waiting for your approval. <a href="/portal/approvals/">Review it</a>.</p>';
+  }
+  return '<p class="notice">' + count + ' drafts are waiting for your approval. <a href="/portal/approvals/">Review them</a>.</p>';
+}
+
+function meetingUpcoming(meeting) {
+  return meeting.status === 'booked' && new Date(meeting.start).getTime() > Date.now();
+}
+
+function meetingLabel(meeting) {
+  if (meeting.status === 'booked' && !meetingUpcoming(meeting)) return { cls: '', name: 'Held' };
+  return { cls: statusClass(meeting.status), name: label(meeting.status) };
+}
+
+async function renderAgentsHome(me) {
+  const main = shell(me, 'Agents', 'What is set up for your office, and the reports your engineer posts after each run.');
   if (!me.account) return noAccount(main, me);
-  const data = await api('home');
-  const upcoming = data.upcoming;
-  const nextFig = upcoming
-    ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(upcoming.start))
-    : 'None';
-  const nextText = upcoming
-    ? esc(upcoming.when) + '. ' + esc(label(upcoming.type)) + '. <a href="/portal/meetings/">Meetings</a>'
-    : 'No call on the books. <a href="/portal/meetings/">Meetings</a>';
-  const waiting = (data.approvals || []).length;
-  const open = (data.requests || []).length;
-  const agents = (data.agents || []).map(function (a) {
-    return ledgerRow(a.name, statusClass(a.status), label(a.status), esc(a.chore));
-  }).join('');
-  const activity = (data.activity || []).map(function (row) {
-    return ledgerRow(whenLabel(row.ts), statusClass(row.type), label(row.type), activityEntry(row));
-  }).join('');
+  const [log, pending] = await Promise.all([api('activity'), api('approvals')]);
+  const agents = log.agents || [];
+  const rows = byNewest(log.activity || [], 'ts');
+  const cards = agents.map(function (agent) { return agentCard(agent, rows); }).join('');
+  const shown = rows.slice(0, 6);
+  const reports = shown.map(function (row) { return reportCard(row, agents); }).join('');
+  const more = rows.length > shown.length
+    ? '<p class="portal-more"><a href="/portal/activity/">Older reports</a></p>'
+    : '';
   main.innerHTML =
-    '<ul class="figures">' +
-    '<li><span class="fig">' + esc(nextFig) + '</span><p>' + nextText + '</p></li>' +
-    '<li><span class="fig">' + waiting + '</span><p>' + (waiting === 0 ? 'Nothing is waiting on you.' : (waiting === 1 ? 'Approval is waiting.' : 'Approvals are waiting.')) + ' <a href="/portal/approvals/">Approvals</a></p></li>' +
-    '<li><span class="fig">' + open + '</span><p>' + (open === 0 ? 'No open requests.' : (open === 1 ? 'Open request.' : 'Open requests.')) + ' <a href="/portal/requests/">Requests</a></p></li>' +
-    '</ul>' +
-    '<h2>Agents</h2>' + (agents ? ledger(agents) : empty('No agents yet. They show up here as they are set up.')) +
-    '<h2>Latest</h2>' + (activity ? ledger(activity) : empty('Nothing posted yet.'));
+    approvalNotice((pending.approvals || []).length) +
+    (cards || empty('No agents yet. They show up here once your engineer sets them up.')) +
+    '<h2>Reports</h2>' +
+    '<p class="role-note">Your engineer posts a report from Claude or Cursor after a run.</p>' +
+    (reports || empty('No reports yet.')) +
+    more;
 }
 
 async function renderActivity(me) {
-  const main = shell(me.user, 'Activity', 'What the agents did, and who signed off.');
+  const main = shell(me, 'Activity', 'Newest first. What the agents did, and who signed off.');
   if (!me.account) return noAccount(main, me);
   async function load() {
     const type = document.getElementById('filter-type').value;
@@ -365,7 +593,7 @@ async function renderActivity(me) {
     if (agent) q.set('agent', agent);
     try {
       const data = await api('activity' + (q.toString() ? '?' + q.toString() : ''));
-      const rows = (data.activity || []).map(function (row) {
+      const rows = byNewest(data.activity, 'ts').map(function (row) {
         return ledgerRow(whenLabel(row.ts), statusClass(row.type), label(row.type), activityEntry(row));
       }).join('');
       document.getElementById('activity-list').innerHTML = rows ? ledger(rows) : empty('Nothing in this view.');
@@ -377,64 +605,66 @@ async function renderActivity(me) {
   const options = (first.agents || []).map(function (a) {
     return '<option value="' + esc(a.id) + '">' + esc(a.name) + '</option>';
   }).join('');
+  const initial = new URLSearchParams(location.search);
   main.innerHTML =
     '<div class="portal-filters"><label>Type <select id="filter-type"><option value="">All</option>' +
     '<option value="did">Done</option><option value="needs_approval">Waiting on you</option>' +
     '<option value="blocked">Blocked</option><option value="error">Error</option><option value="note">Note</option></select></label>' +
     '<label>Agent <select id="filter-agent"><option value="">All</option>' + options + '</select></label></div>' +
     '<div id="activity-list"></div>';
-  document.getElementById('filter-type').addEventListener('change', load);
-  document.getElementById('filter-agent').addEventListener('change', load);
+  const typeSelect = document.getElementById('filter-type');
+  const agentSelect = document.getElementById('filter-agent');
+  if (initial.get('type')) typeSelect.value = initial.get('type');
+  if (initial.get('agent')) agentSelect.value = initial.get('agent');
+  typeSelect.addEventListener('change', load);
+  agentSelect.addEventListener('change', load);
   await load();
 }
 
-async function renderAgents(me) {
-  const main = shell(me.user, 'Agents', 'The chores this office handed over.');
-  if (!me.account) return noAccount(main, me);
-  const data = await api('agents');
-  const rows = (data.agents || []).map(function (a) {
-    const key = a.last4 ? '<p class="ledger-detail">Key ending in ' + esc(a.last4) + '.</p>' : '';
-    return ledgerRow(a.name, statusClass(a.status), label(a.status), esc(a.chore) + key);
-  }).join('');
-  main.innerHTML = rows ? ledger(rows) : empty('No agents yet. They show up here as they are set up.');
-}
 
 async function renderApprovals(me) {
-  const main = shell(me.user, 'Approvals', 'A person signs off before a new kind of message goes out.');
+  const main = shell(me, 'Approvals', 'Read the draft, then approve it or decline it. The decision stays on this page.');
   if (!me.account) return noAccount(main, me);
   const data = await api('approvals');
-  const items = data.approvals || [];
+  const items = byNewest(data.approvals, 'createdAt');
   main.innerHTML = items.length
-    ? '<figure class="record ledger"><table><tbody id="approvals"></tbody></table></figure><p class="desk-status" id="approval-error" hidden></p>'
+    ? '<div id="approvals"></div><p class="desk-status" id="approval-error" hidden></p>'
     : empty('Nothing is waiting on you.');
   const list = document.getElementById('approvals');
   if (!list) return;
   items.forEach(function (item) {
-    const tr = document.createElement('tr');
-    tr.innerHTML = '<th>' + esc(whenLabel(item.createdAt)) + '</th><td class="status waiting">Waiting</td><td></td>';
-    const entry = tr.lastElementChild;
-    const summary = document.createElement('p');
-    summary.textContent = item.summary || '';
-    const actions = document.createElement('div');
-    actions.className = 'portal-actions';
+    const card = document.createElement('article');
+    card.className = 'record piece';
+    const subject = item.subject || item.summary || 'Draft';
+    const why = item.why || 'A person signs off before a new kind of message goes out.';
+    const draft = item.draft || item.summary || '';
+    card.innerHTML =
+      '<header class="piece-head"><h2>' + esc(subject) + '</h2><span class="status waiting">Waiting</span></header>' +
+      '<p class="ledger-detail">' + esc(whenLabel(item.createdAt)) + '</p>' +
+      '<p>' + esc(why) + '</p>' +
+      (draft ? '<blockquote class="piece-draft">' + esc(draft) + '</blockquote>' : '') +
+      '<div class="portal-actions"></div>';
+    const actions = card.querySelector('.portal-actions');
+    const status = card.querySelector('.status');
     ['approved', 'declined'].forEach(function (decision) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = decision === 'approved' ? 'btn' : 'btn-quiet';
       btn.textContent = decision === 'approved' ? 'Approve' : 'Decline';
       btn.addEventListener('click', async function () {
-        btn.disabled = true;
+        actions.querySelectorAll('button').forEach(function (button) { button.disabled = true; });
         try {
           await api('approvals', { method: 'POST', body: { id: item.id, decision: decision } });
-          tr.remove();
-          if (!list.children.length) {
-            list.closest('.ledger').replaceWith(Object.assign(document.createElement('p'), {
-              className: 'portal-empty',
-              textContent: 'Nothing is waiting on you.',
-            }));
-          }
+          status.className = 'status';
+          status.textContent = decision === 'approved' ? 'Approved' : 'Declined';
+          const note = document.createElement('p');
+          note.className = 'saved';
+          note.textContent = decision === 'approved'
+            ? 'Approved. It is in the activity log. It will not send until that kind of message is allowed.'
+            : 'Declined. It will not be sent.';
+          actions.replaceWith(note);
         } catch (e) {
-          btn.disabled = false;
+          actions.querySelectorAll('button').forEach(function (button) { button.disabled = false; });
           const err = document.getElementById('approval-error');
           err.hidden = false;
           err.textContent = e.message;
@@ -442,21 +672,22 @@ async function renderApprovals(me) {
       });
       actions.appendChild(btn);
     });
-    entry.appendChild(summary);
-    entry.appendChild(actions);
-    list.appendChild(tr);
+    list.appendChild(card);
   });
 }
 
 async function renderRequests(me) {
-  const main = shell(me.user, 'Requests', 'Say what should change.');
+  const main = shell(me, 'Requests', 'The studio reads a request on weekdays and answers within one business day.');
   if (!me.account) return noAccount(main, me);
   const data = await api('requests');
-  const rows = (data.requests || []).map(function (r) {
-    return ledgerRow(whenLabel(r.createdAt), statusClass(r.status), label(r.status), esc(r.summary));
+  const rows = byNewest(data.requests, 'createdAt').map(function (r) {
+    const detail = r.status === 'open'
+      ? esc(r.summary) + '<p class="ledger-detail">Open. The studio picks this up on the next weekday.</p>'
+      : esc(r.summary);
+    return ledgerRow(whenLabel(r.createdAt), statusClass(r.status), label(r.status), detail);
   }).join('');
   main.innerHTML =
-    '<form id="request-form" class="desk-fields"><label class="desk-field desk-field-wide"><span>The change</span><input name="summary" required maxlength="500" placeholder="Stop the review replies. Keep the document chase."></label>' +
+    '<form id="request-form" class="desk-fields"><label class="desk-field desk-field-wide"><span>The change</span><input name="summary" required maxlength="500" placeholder="Ask Chase to follow Hale on Tuesdays only."></label>' +
     '<div class="desk-field-wide portal-actions"><button class="btn" type="submit">Send</button></div>' +
     '<p class="desk-status desk-field-wide" id="request-error" hidden></p></form>' +
     '<h2>Sent</h2>' + (rows ? ledger(rows) : empty('Nothing sent yet.'));
@@ -466,7 +697,7 @@ async function renderRequests(me) {
     err.hidden = true;
     try {
       await api('requests', { method: 'POST', body: { summary: new FormData(event.target).get('summary') } });
-      location.reload();
+      await refresh();
     } catch (e) {
       err.hidden = false;
       err.textContent = e.message;
@@ -477,7 +708,7 @@ async function renderRequests(me) {
 function slotButtons(slots, timeZone, onPick) {
   const box = document.createElement('div');
   box.className = 'book-times';
-  (slots || []).slice(0, 24).forEach(function (slot) {
+  (slots || []).slice(0, 8).forEach(function (slot) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'book-slot';
@@ -490,26 +721,67 @@ function slotButtons(slots, timeZone, onPick) {
   return box;
 }
 
+function callKind(type) {
+  if (type === 'checkpoint') return 'Check-in';
+  if (type === 'monthly') return 'Monthly call';
+  return label(type);
+}
+
+function nextCallType(meetings) {
+  if ((meetings || []).some(meetingUpcoming)) return '';
+  const hadCheckpoint = (meetings || []).some(function (meeting) {
+    return meeting.type === 'checkpoint' && meeting.status !== 'cancelled' && meeting.status !== 'canceled';
+  });
+  return hadCheckpoint ? 'monthly' : 'checkpoint';
+}
+
+function appointmentCard(meeting, allowCancel) {
+  const state = meetingLabel(meeting);
+  const when = meeting.when || whenLabel(meeting.start);
+  const cancel = allowCancel
+    ? '<div class="portal-actions"><button type="button" class="btn-quiet" data-cancel="' + esc(meeting.id) + '">Cancel</button></div>'
+    : '';
+  return '<article class="record piece">' +
+    '<header class="piece-head"><h2>' + esc(when) + '</h2><span class="status ' + state.cls + '">' + esc(state.name) + '</span></header>' +
+    '<p>' + esc(callKind(meeting.type)) + ' with your engineer.</p>' +
+    cancel + '</article>';
+}
+
 async function renderMeetings(me) {
-  const main = shell(me.user, 'Meetings', 'Checkpoint at day 30, then a call each month.');
+  const main = shell(me, 'Book a call', 'A time with your AI engineer.');
   if (!me.account) return noAccount(main, me);
   const data = await api('meetings');
-  const rows = (data.meetings || []).map(function (m) {
-    const cancel = m.status === 'booked'
-      ? '<div class="portal-actions"><button type="button" class="btn-quiet" data-cancel="' + esc(m.id) + '">Cancel</button></div>'
-      : '';
-    return ledgerRow(m.when || whenLabel(m.start), statusClass(m.status), label(m.status), esc(label(m.type)) + cancel);
-  }).join('');
+  const meetings = data.meetings || [];
+  const upcoming = meetings.filter(meetingUpcoming).sort(function (a, b) {
+    return String(a.start).localeCompare(String(b.start));
+  });
+  const past = byNewest(meetings.filter(function (meeting) { return !meetingUpcoming(meeting); }), 'start').slice(0, 3);
+  const closed = me.account.status === 'cancelled';
+  if (closed && !upcoming.length) {
+    main.innerHTML = empty('This account is closed, so new calls are not open.');
+    return;
+  }
+  const type = closed ? '' : nextCallType(meetings);
+  const intro = type === 'checkpoint'
+    ? 'Pick a time for the check-in. It is the call about a month into the work.'
+    : (type === 'monthly' ? 'Pick a time for the monthly call.' : '');
   main.innerHTML =
-    (rows ? ledger(rows) : empty('No calls on the books.')) +
-    (me.account.status === 'cancelled' ? '' :
-      '<h2>Book a checkpoint or a monthly call</h2><div class="portal-actions"><button type="button" class="btn" id="book-checkpoint">Checkpoint</button><button type="button" class="btn-quiet" id="book-monthly">Monthly</button></div><div id="slot-box"></div><p class="desk-status" id="meet-error" hidden></p>');
+    (upcoming.length
+      ? upcoming.map(function (meeting) { return appointmentCard(meeting, true); }).join('')
+      : '<p class="portal-empty">No call booked.</p>') +
+    (type
+      ? '<h2>Pick a time</h2><p class="role-note">' + esc(intro) + '</p><div id="slot-box"><p class="portal-loading">Loading times.</p></div>'
+      : (upcoming.length ? '<p class="role-note">Another time opens after this call.</p>' : '')) +
+    '<p class="desk-status" id="meet-error" hidden></p>' +
+    (past.length
+      ? '<h2>Earlier</h2>' + past.map(function (meeting) { return appointmentCard(meeting, false); }).join('')
+      : '');
   main.querySelectorAll('[data-cancel]').forEach(function (btn) {
     btn.addEventListener('click', async function () {
       btn.disabled = true;
       try {
         await api('meetings/cancel', { method: 'POST', body: { id: btn.getAttribute('data-cancel') } });
-        location.reload();
+        await refresh();
       } catch (e) {
         btn.disabled = false;
         const err = document.getElementById('meet-error') || document.createElement('p');
@@ -518,54 +790,78 @@ async function renderMeetings(me) {
       }
     });
   });
-  async function open(type) {
-    const err = document.getElementById('meet-error');
-    err.hidden = true;
-    const box = document.getElementById('slot-box');
-    box.innerHTML = '<p class="portal-loading">Loading times.</p>';
-    try {
-      const slots = await api('meetings/slots?type=' + type);
-      box.textContent = '';
-      if (!(slots.slots || []).length) {
-        box.innerHTML = empty('No open times in the next two weeks.');
-        return;
-      }
-      box.appendChild(slotButtons(slots.slots, slots.timeZone, async function (slot, button) {
-        button.disabled = true;
-        try {
-          const held = await api('meetings/hold', { method: 'POST', body: { type: type, start: slot.start } });
-          await api('meetings', { method: 'POST', body: { type: type, start: slot.start, holdToken: held.holdToken } });
-          location.reload();
-        } catch (e) {
-          button.disabled = false;
-          err.hidden = false;
-          err.textContent = e.message;
-        }
-      }));
-    } catch (e) {
-      box.textContent = '';
-      err.hidden = false;
-      err.textContent = e.message;
+  if (!type) return;
+  const err = document.getElementById('meet-error');
+  const box = document.getElementById('slot-box');
+  try {
+    const slots = await api('meetings/slots?type=' + type);
+    box.textContent = '';
+    if (slots.closed) {
+      box.innerHTML = empty(slots.closed);
+      return;
     }
+    if (!(slots.slots || []).length) {
+      box.innerHTML = empty('No open times in the next two weeks.');
+      return;
+    }
+    const zone = document.createElement('p');
+    zone.className = 'role-note';
+    zone.textContent = 'Times are in ' + zoneName(slots.timeZone) + '.';
+    box.appendChild(zone);
+    box.appendChild(slotButtons(slots.slots, slots.timeZone, async function (slot, button) {
+      button.disabled = true;
+      try {
+        const held = await api('meetings/hold', { method: 'POST', body: { type: type, start: slot.start } });
+        await api('meetings', { method: 'POST', body: { type: type, start: slot.start, holdToken: held.holdToken } });
+        await refresh();
+      } catch (e) {
+        button.disabled = false;
+        err.hidden = false;
+        err.textContent = e.message;
+      }
+    }));
+  } catch (e) {
+    box.textContent = '';
+    err.hidden = false;
+    err.textContent = e.message;
   }
-  const checkpoint = document.getElementById('book-checkpoint');
-  if (checkpoint) checkpoint.addEventListener('click', function () { open('checkpoint'); });
-  const monthly = document.getElementById('book-monthly');
-  if (monthly) monthly.addEventListener('click', function () { open('monthly'); });
+}
+
+function planPrice(status) {
+  if (status === 'active' || status === 'trialing' || status === 'past_due' || status === 'unpaid') return '$1,000 a month';
+  return '$6,000 to start, then $1,000 a month';
 }
 
 async function renderBilling(me) {
-  const main = shell(me.user, 'Billing', me.account ? accountLine(me.account) : 'Invoices, the card, and the monthly charge.');
+  const main = shell(me, 'Subscription', 'Pay, change the card, or open an invoice.');
   if (!me.account) return noAccount(main, me);
-  const status = new URLSearchParams(location.search).get('status');
-  const banner = status === 'success'
+  const queryStatus = new URLSearchParams(location.search).get('status');
+  const banner = queryStatus === 'success'
     ? '<p class="notice">Payment received. The account updates when Stripe confirms it.</p>'
-    : (status === 'cancel' ? '<p class="notice">The payment was not completed.</p>' : '');
-  const active = me.account.billingStatus === 'active' || me.account.billingStatus === 'trialing';
+    : (queryStatus === 'cancel' ? '<p class="notice">The payment was not completed.</p>' : '');
+  const status = me.account.billingStatus || 'none';
+  const active = status === 'active' || status === 'trialing';
+  const problem = status === 'past_due' || status === 'unpaid';
+  const invoices = me.account.invoices || [];
+  const invoiceRows = invoices.map(function (invoice) {
+    return ledgerRow(whenLabel(invoice.when), '', invoice.status || '', esc(invoice.label) + '. ' + esc(invoice.amount) + '.');
+  }).join('');
+  const actions = active
+    ? '<button class="btn" id="manage-bill" type="button">Manage subscription</button>'
+    : (problem
+      ? '<button class="btn" id="manage-bill" type="button">Update payment</button>'
+      : '<button class="btn" id="pay" type="button">Pay $6,000</button><button class="btn-quiet" id="manage-bill" type="button">Invoices and card</button>');
+  const note = active
+    ? 'The monthly charge keeps the agents running. It includes weekday replies, the monthly call, and the written report.'
+    : (problem
+      ? 'Update the card to keep the agents running.'
+      : '$5,000 sets the agents up. $1,000 is the first month. Every month after that is $1,000.');
   main.innerHTML = banner +
-    '<p class="bill-line"><b>$5,000</b> to set up, then <b>$1,000 a month</b>. The setup is on the first invoice only.</p>' +
-    '<div class="portal-actions"><button class="btn" id="pay" type="button"' + (active ? ' hidden' : '') + '>Pay $5,000 and start the month</button>' +
-    '<button class="btn-quiet" id="manage-bill" type="button">Invoices and card</button></div>' +
+    '<dl class="plan"><div><dt>Status</dt><dd>' + esc(label(status)) + '</dd></div>' +
+    '<div><dt>Price</dt><dd>' + esc(planPrice(status)) + '</dd></div></dl>' +
+    '<p class="bill-note">' + esc(note) + '</p>' +
+    '<div class="portal-actions">' + actions + '</div>' +
+    '<h2>Invoices</h2>' + (invoiceRows ? ledger(invoiceRows) : empty(active ? 'No invoice is on file yet.' : 'No invoice yet. The first one is created when you pay.')) +
     '<p class="desk-status" id="bill-error" hidden></p>';
   async function go(path, button) {
     const err = document.getElementById('bill-error');
@@ -573,6 +869,16 @@ async function renderBilling(me) {
     button.disabled = true;
     try {
       const data = await api(path, { method: 'POST', body: {} });
+      if (data.notice) {
+        button.disabled = false;
+        err.hidden = false;
+        err.textContent = data.notice;
+        return;
+      }
+      if (data.sample) {
+        await refresh();
+        return;
+      }
       if (data.url) location.href = data.url;
     } catch (e) {
       button.disabled = false;
@@ -588,24 +894,37 @@ async function renderBilling(me) {
 }
 
 async function renderAccount(me) {
-  const main = shell(me.user, 'Account', me.account ? me.account.kind : 'The people on this account, and who gets the weekly note.');
+  const peopleLine = me.account
+    ? me.account.office + (me.account.kind ? ', ' + me.account.kind : '') + '. Who can open this account, and who gets the weekly note.'
+    : 'Who can open this account, and who gets the weekly note.';
+  const main = shell(me, 'People', peopleLine);
   if (!me.account) return noAccount(main, me);
   const owner = me.account.role === 'owner';
   const meMember = (me.account.members || []).find(function (m) { return m.email === me.user.email; });
+  const receivers = (me.account.members || []).filter(function (m) { return m.digest !== false; }).map(function (m) { return m.name || m.email; });
   const rows = (me.account.members || []).map(function (m) {
     const remove = owner && m.role !== 'owner'
       ? '<div class="portal-actions"><button type="button" class="btn-quiet" data-remove="' + esc(m.email) + '">Remove</button></div>'
       : '';
-    return ledgerRow(m.name || m.email, '', label(m.role), esc(m.email) + remove);
+    const roleNote = m.role === 'owner'
+      ? 'Can invite people, pay the invoice, and remove members.'
+      : 'Can read the portal and send requests.';
+    const mail = m.digest === false ? 'Does not get the weekly note.' : 'Gets the weekly note and the monthly report.';
+    return ledgerRow(m.name || m.email, '', label(m.role), esc(m.email) + '<p class="ledger-detail">' + esc(roleNote) + ' ' + esc(mail) + '</p>' + remove);
   }).join('');
   main.innerHTML =
+    '<p class="role-note">An owner runs the account. A member can read it and send requests. The weekly note and the monthly report go to ' +
+    (receivers.length ? esc(receivers.join(', ')) : 'no one yet') + '.</p>' +
     (rows ? ledger(rows) : empty('No one is on this account yet.')) +
-    '<label class="portal-check"><input type="checkbox" id="digest"' + (meMember && meMember.digest !== false ? ' checked' : '') + '> Email me the weekly note and the monthly report</label>' +
+    (meMember
+      ? '<label class="portal-check"><input type="checkbox" id="digest"' + (meMember.digest !== false ? ' checked' : '') + '> Email me the weekly note and the monthly report</label>'
+      : '') +
     (owner
-      ? '<h2>Invite someone</h2><form id="invite" class="desk-fields"><label class="desk-field"><span>Name</span><input name="name"></label><label class="desk-field"><span>Email</span><input type="email" name="email" required></label><div class="desk-field-wide portal-actions"><button class="btn" type="submit">Send invite</button></div><p class="desk-status desk-field-wide" id="invite-error" hidden></p></form>'
+      ? '<h2>Invite someone at the firm</h2><p class="role-note">They get a link to this portal. They do not get billing access unless they are an owner.</p><form id="invite" class="desk-fields"><label class="desk-field"><span>Name</span><input name="name"></label><label class="desk-field"><span>Email</span><input type="email" name="email" required></label><div class="desk-field-wide portal-actions"><button class="btn" type="submit">Send invite</button></div><p class="desk-status desk-field-wide" id="invite-error" hidden></p></form>'
       : '') +
     '<p class="desk-status" id="account-error" hidden></p>';
-  document.getElementById('digest').addEventListener('change', function (event) {
+  const digest = document.getElementById('digest');
+  if (digest) digest.addEventListener('change', function (event) {
     api('members/digest', { method: 'POST', body: { digest: event.target.checked } });
   });
   main.querySelectorAll('[data-remove]').forEach(function (btn) {
@@ -613,7 +932,7 @@ async function renderAccount(me) {
       btn.disabled = true;
       try {
         await api('members/remove', { method: 'POST', body: { email: btn.getAttribute('data-remove') } });
-        location.reload();
+        await refresh();
       } catch (e) {
         btn.disabled = false;
         const err = document.getElementById('account-error');
@@ -630,7 +949,7 @@ async function renderAccount(me) {
     const fd = new FormData(invite);
     try {
       await api('members', { method: 'POST', body: { name: fd.get('name'), email: fd.get('email') } });
-      location.reload();
+      await refresh();
     } catch (e) {
       err.hidden = false;
       err.textContent = e.message;
@@ -638,8 +957,23 @@ async function renderAccount(me) {
   });
 }
 
+async function renderSettings(me) {
+  const main = shell(me, 'Settings', 'The rest of the account.');
+  if (!me.account) return noAccount(main, me);
+  const items = [
+    ['/portal/activity/', 'Activity', 'The full list of reports, with filters.'],
+    ['/portal/approvals/', 'Approvals', 'Drafts waiting for you to approve or decline.'],
+    ['/portal/requests/', 'Requests', 'Ask for a change. The studio answers on weekdays.'],
+    ['/portal/reports/', 'Monthly report', 'The written summary of the month.'],
+    ['/portal/account/', 'People', 'Who can open this account, and who gets the weekly note.'],
+  ];
+  main.innerHTML = '<nav class="settings-list" aria-label="Settings">' + items.map(function (item) {
+    return '<a href="' + item[0] + '"><span>' + item[1] + '</span><small>' + item[2] + '</small></a>';
+  }).join('') + '</nav>';
+}
+
 async function renderReports(me) {
-  const main = shell(me.user, 'Reports', 'Written at the start of the month, from the activity log.');
+  const main = shell(me, 'Monthly report', 'Written from the reports your engineer posted.');
   if (!me.account) return noAccount(main, me);
   const month = new URLSearchParams(location.search).get('month') || '';
   const data = await api('reports');
@@ -649,14 +983,23 @@ async function renderReports(me) {
     main.innerHTML = empty('No report yet. The first one is written at the start of the next month.');
     return;
   }
+  const counts = current && current.counts;
+  const figures = counts
+    ? '<ul class="figures">' +
+      '<li><span class="fig">' + esc(current.total || 0) + '</span><p>Updates. <a href="/portal/activity/">Activity</a></p></li>' +
+      '<li><span class="fig">' + esc(counts.did || 0) + '</span><p>Done.</p></li>' +
+      '<li><span class="fig">' + esc(counts.waiting || 0) + '</span><p>Waiting on you.</p></li>' +
+      '<li><span class="fig">' + esc((counts.blocked || 0) + (counts.note || 0)) + '</span><p>Blocked or noted.</p></li>' +
+      '</ul>'
+    : '<p class="role-note">' + esc(current && current.total || 0) + ' updates. <a href="/portal/activity/">Activity</a></p>';
   main.innerHTML =
     '<div class="book-days">' + reports.map(function (r) {
       const on = current && r.month === current.month;
       return '<a class="book-slot' + (on ? ' is-on' : '') + '" href="/portal/reports/?month=' + esc(r.month) + '"' +
-        (on ? ' aria-current="page"' : '') + '>' + esc(monthLabel(r.month)) + '</a>';
+        (on ? ' aria-current="page"' : '') + '>' + esc(monthLabel(r.month)) + (r.soFar ? ' so far' : '') + '</a>';
     }).join('') + '</div>' +
     (current
-      ? '<h2>' + esc(monthLabel(current.month)) + '</h2><p class="portal-empty">' + esc(current.total || 0) + ' updates.</p>' +
+      ? '<h2>' + esc(monthLabel(current.month)) + (current.soFar ? ', so far' : '') + '</h2>' + figures +
         ((current.highlights || []).length
           ? '<ul class="posture">' + current.highlights.map(function (h) { return '<li>' + esc(h) + '</li>'; }).join('') + '</ul>'
           : '')
@@ -664,7 +1007,7 @@ async function renderReports(me) {
 }
 
 async function renderAdmin(me) {
-  const main = shell(me.user, 'Admin', 'Create an account after a call. Leads from the form and the calendar land here.');
+  const main = shell(me, 'Accounts', 'Create an account after a call. Leads from the form and the calendar land here.');
   const data = await api('admin/accounts');
   const accounts = (data.accounts || []).map(function (a) {
     return ledgerRow(
@@ -685,6 +1028,7 @@ async function renderAdmin(me) {
     return ledgerRow(whenLabel(l.start || l.createdAt), '', source, who);
   }).join('');
   main.innerHTML =
+    '<p class="notice">Harbor &amp; Finch is a sample office, with agents, approvals, meetings, and a report. <button type="button" id="open-sample">Open it as the client</button></p>' +
     '<h2>New account</h2>' +
     '<form id="new-account" class="desk-fields">' +
     '<label class="desk-field"><span>Business</span><input name="office" required></label>' +
@@ -700,6 +1044,12 @@ async function renderAdmin(me) {
     (leads ? ledger(leads, ['When', 'Source', 'Lead']) : empty('No leads yet. Inquiries from the Studio form and bookings from the calendar appear here.')) +
     '</section>' +
     '<p class="portal-more"><a href="/portal/admin/availability/">Availability</a></p>';
+  document.getElementById('open-sample').addEventListener('click', function () {
+    storeSet(VIEW_KEY, 'client');
+    storeSet(PREVIEW_KEY, SAMPLE_ID);
+    chromeKey = '';
+    void go('/portal/');
+  });
   document.getElementById('new-account').addEventListener('submit', async function (event) {
     event.preventDefault();
     const err = document.getElementById('admin-error');
@@ -710,7 +1060,7 @@ async function renderAdmin(me) {
         method: 'POST',
         body: { office: fd.get('office'), kind: fd.get('kind'), name: fd.get('name'), email: fd.get('email') },
       });
-      location.href = '/portal/admin/account/?id=' + created.account.id;
+      await go('/portal/admin/account/?id=' + encodeURIComponent(created.account.id));
     } catch (e) {
       err.hidden = false;
       err.textContent = e.message;
@@ -720,7 +1070,7 @@ async function renderAdmin(me) {
 
 async function renderAdminAccount(me) {
   const id = new URLSearchParams(location.search).get('id') || '';
-  const main = shell(me.user, 'Account', '');
+  const main = shell(me, 'Account', '');
   if (!id) {
     main.innerHTML = '<p class="desk-status">Missing account.</p>';
     return;
@@ -784,7 +1134,7 @@ async function renderAdminAccount(me) {
     btn.addEventListener('click', async function () {
       try {
         await api('admin/agents/status', { method: 'POST', body: { accountId: id, agentId: btn.getAttribute('data-status'), status: btn.getAttribute('data-next') } });
-        location.reload();
+        await refresh();
       } catch (e) { show(e); }
     });
   });
@@ -793,14 +1143,14 @@ async function renderAdminAccount(me) {
     err.hidden = true;
     try {
       await api('admin/notes', { method: 'POST', body: { accountId: id, summary: new FormData(event.target).get('summary') } });
-      location.reload();
+      await refresh();
     } catch (e) { show(e); }
   });
   main.querySelectorAll('[data-approve]').forEach(function (btn) {
     btn.addEventListener('click', async function () {
       try {
         await api('admin/approvals', { method: 'POST', body: { accountId: id, id: btn.getAttribute('data-approve'), decision: 'approved' } });
-        location.reload();
+        await refresh();
       } catch (e) { show(e); }
     });
   });
@@ -808,20 +1158,23 @@ async function renderAdminAccount(me) {
     btn.addEventListener('click', async function () {
       try {
         await api('admin/requests', { method: 'POST', body: { accountId: id, id: btn.getAttribute('data-done') } });
-        location.reload();
+        await refresh();
       } catch (e) { show(e); }
     });
   });
   document.getElementById('gen-report').addEventListener('click', async function () {
     try {
       await api('admin/reports', { method: 'POST', body: { accountId: id } });
-      location.href = '/portal/reports/';
+      storeSet(VIEW_KEY, 'client');
+      storeSet(PREVIEW_KEY, id);
+      chromeKey = '';
+      await go('/portal/reports/');
     } catch (e) { show(e); }
   });
 }
 
 async function renderAvailability(me) {
-  const main = shell(me.user, 'Availability', 'Leave a day blank to keep it closed. Hours look like 10:00.');
+  const main = shell(me, 'Availability', 'Leave a day blank to keep it closed. Hours look like 10:00.');
   const data = await api('admin/availability');
   const a = data.availability;
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -885,12 +1238,145 @@ async function renderAvailability(me) {
   });
 }
 
+function showError(e) {
+  const main = document.getElementById('portal-main');
+  const html = '<p class="desk-status">' + esc(e.message || 'Try again.') + '</p>';
+  if (main) main.innerHTML = html;
+  else if (root) root.innerHTML = '<header class="page-head"><h1>Something went wrong.</h1></header>' + html;
+}
+
+async function presented() {
+  setPreviewAccount('');
+  if (!viewer || !isEngineer(viewer.user) || viewMode() !== 'client') return viewer;
+  const choices = [{ id: SAMPLE_ID, office: 'Harbor & Finch (sample)' }];
+  try {
+    const data = await api('admin/accounts');
+    (data.accounts || []).forEach(function (account) {
+      choices.push({ id: account.id, office: account.office || 'Account' });
+    });
+  } catch (e) { /* the sample office still opens */ }
+  const ownId = viewer.account && viewer.account.id;
+  let id = storeGet(PREVIEW_KEY);
+  const known = choices.some(function (account) { return account.id === id; });
+  if (!known) id = ownId || SAMPLE_ID;
+  storeSet(PREVIEW_KEY, id);
+  if (id === SAMPLE_ID) {
+    setPreviewAccount(SAMPLE_ID);
+    bindSampleUser(viewer.user.email, personName(viewer.user));
+    return { user: viewer.user, account: sampleAccount(), previewChoices: choices };
+  }
+  if (ownId && id === ownId) {
+    return { user: viewer.user, account: viewer.account, previewChoices: choices };
+  }
+  setPreviewAccount(id);
+  const overlay = await api('me');
+  return { user: overlay.user, account: overlay.account, previewChoices: choices };
+}
+
+async function paint(route, opts) {
+  const options = opts || {};
+  page = route[1];
+  if (root) root.dataset.page = page;
+  document.title = route[2] + ' · Algorithmacy Studio';
+  let me;
+  try {
+    me = await presented();
+  } catch (e) {
+    showError(e);
+    return;
+  }
+  try {
+    await PAGES[page](me);
+  } catch (e) {
+    showError(e);
+    return;
+  }
+  if (options.focus) {
+    const heading = document.querySelector('#portal .page-head h1');
+    if (heading) {
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll: true });
+    }
+  }
+  if (options.scroll !== false) {
+    const previous = document.documentElement.style.scrollBehavior;
+    document.documentElement.style.scrollBehavior = 'auto';
+    window.scrollTo(0, 0);
+    document.documentElement.style.scrollBehavior = previous;
+  }
+}
+
+async function goNow(url, opts) {
+  const options = opts || {};
+  const next = new URL(url, location.origin);
+  const route = matchRoute(next.pathname);
+  if (!route) {
+    location.assign(next.href);
+    return;
+  }
+  const dest = destinationFor(route);
+  const search = dest[0] === route[0] ? next.search : '';
+  const target = dest[0] + search;
+  const here = normalizePath(location.pathname) + location.search;
+  if (here !== target) {
+    const state = { portal: 1 };
+    if (options.replace) history.replaceState(state, '', target);
+    else history.pushState(state, '', target);
+  }
+  await paint(dest, options);
+}
+
+async function go(url, opts) {
+  if (rendering) {
+    queued = { url: String(url), opts: opts || {} };
+    return;
+  }
+  rendering = true;
+  try {
+    await goNow(url, opts || {});
+  } finally {
+    rendering = false;
+    if (queued) {
+      const next = queued;
+      queued = null;
+      await go(next.url, next.opts);
+    }
+  }
+}
+
+function refresh() {
+  return go(location.pathname + location.search, { replace: true, focus: false, scroll: false });
+}
+
+function onPortalClick(event) {
+  if (!viewer || event.defaultPrevented || event.button !== 0) return;
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  const anchor = event.target && event.target.closest ? event.target.closest('a[href]') : null;
+  if (!anchor || (anchor.target && anchor.target !== '_self') || anchor.hasAttribute('download')) return;
+  const href = anchor.getAttribute('href') || '';
+  if (href.charAt(0) === '#') return;
+  let url;
+  try { url = new URL(anchor.href, location.origin); } catch (e) { return; }
+  if (url.origin !== location.origin) return;
+  const route = matchRoute(url.pathname);
+  if (!route) return;
+  const dest = destinationFor(route);
+  const search = dest[0] === route[0] ? url.search : '';
+  if (dest[0] + search === normalizePath(location.pathname) + location.search) {
+    event.preventDefault();
+    return;
+  }
+  event.preventDefault();
+  void go(url.pathname + url.search);
+}
+
 const PAGES = {
   login: renderLogin,
   finish: renderFinish,
-  dashboard: renderDashboard,
+  dashboard: renderAgentsHome,
   activity: renderActivity,
-  agents: renderAgents,
+  agents: renderAgentsHome,
+  settings: renderSettings,
   approvals: renderApprovals,
   requests: renderRequests,
   meetings: renderMeetings,
@@ -910,16 +1396,19 @@ async function boot() {
     const me = await session();
     if (!me) return;
     viewer = me;
-    if (page.indexOf('admin') === 0 && !me.user.isAdmin) {
-      location.href = '/portal/';
-      return;
+    bindSampleUser(me.user.email, personName(me.user));
+    document.addEventListener('click', onPortalClick);
+    window.addEventListener('popstate', function () {
+      void go(location.pathname + location.search, { replace: true, focus: false });
+    });
+    const route = matchRoute(location.pathname) || matchRoute('/portal/');
+    const dest = destinationFor(route);
+    if (dest[0] !== normalizePath(location.pathname)) {
+      history.replaceState({ portal: 1 }, '', dest[0]);
     }
-    await PAGES[page](me);
+    await paint(dest, { focus: false, scroll: false });
   } catch (e) {
-    const main = document.getElementById('portal-main');
-    const html = '<p class="desk-status">' + esc(e.message || 'Try again.') + '</p>';
-    if (main) main.innerHTML = html;
-    else root.innerHTML = '<header class="page-head"><h1>Something went wrong.</h1></header>' + html;
+    showError(e);
   }
 }
 
