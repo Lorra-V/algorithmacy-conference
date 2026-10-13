@@ -11,7 +11,8 @@ test('engineer_application names Your Engineers and does not sign anyone in', as
   assert.match(body, /Your Engineers/);
   assert.match(body, /A pull request does not sign anyone in/);
   assert.match(body, /images\/speakers\/joseph-example\.jpg/);
-  assert.match(body, /only after an invite/);
+  assert.match(body, /merged and an invite is sent/);
+  assert.match(body, /Studio owner sends the invite/);
   assert.doesNotMatch(body, /The engineer/);
 });
 

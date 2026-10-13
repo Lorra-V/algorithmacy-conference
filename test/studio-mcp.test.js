@@ -9,6 +9,7 @@ test('a client connection cannot see engineer tools', () => {
   assert.ok(names.includes('book_call'));
   assert.equal(names.includes('list_accounts'), false);
   assert.equal(names.includes('create_agent'), false);
+  assert.equal(names.includes('set_agent_flow'), false);
   assert.equal(names.includes('post_report'), false);
   assert.equal(names.includes('create_account'), false);
 });
@@ -17,9 +18,25 @@ test('an engineer connection can open offices and still read one office', () => 
   const names = publicTools('engineer').map((tool) => tool.name);
   assert.ok(names.includes('list_accounts'));
   assert.ok(names.includes('create_agent'));
+  assert.ok(names.includes('set_agent_flow'));
   assert.ok(names.includes('post_report'));
   assert.ok(names.includes('list_reports'));
   assert.equal(names.includes('whoami'), true);
+});
+
+test('a client cannot write an agent flow', async () => {
+  const ctx = { role: 'client', email: 'ada@harborfinch.example', name: 'Ada', accountId: 'harbor' };
+  const result = await callTool(ctx, 'set_agent_flow', { agentId: 'intake', steps: ['A new inquiry arrives.'] });
+  assert.equal(result.isError, true);
+  assert.match(result.content[0].text, /not on this connection/);
+});
+
+test('an agent flow is rejected before any office lookup when it is too long', async () => {
+  const ctx = { role: 'engineer', email: 'roger@algorithmacy.org', name: 'Roger', accountId: '' };
+  const steps = Array.from({ length: 13 }, (_, i) => 'Step number ' + (i + 1));
+  const result = await callTool(ctx, 'set_agent_flow', { agentId: 'intake', steps });
+  assert.equal(result.isError, true);
+  assert.match(result.content[0].text, /12/);
 });
 
 test('a client key cannot open another office or an engineer tool', async () => {
@@ -110,4 +127,45 @@ test('a connector key is not accepted', async () => {
   await handler({ method: 'POST', headers: { authorization: 'Bearer ck_secret' }, url: '/api/studio-mcp' }, cap.res);
   assert.equal(cap.status(), 401);
   assert.match(cap.headers['www-authenticate'], /invalid_token/);
+});
+
+test('an engineer token is refused until the profile is merged and invited', async () => {
+  const store = require('../lib/portal/db');
+  const access = store.oauthAccess;
+  const invite = store.engineerInviteFor;
+  store.oauthAccess = async () => ({ role: 'engineer', email: 'ada@example.com', name: 'Ada Missing' });
+  store.engineerInviteFor = async () => ({ email: 'ada@example.com', name: 'Ada Missing' });
+  try {
+    const handler = require('../api/studio-mcp');
+    const cap = capture();
+    await handler({ method: 'POST', headers: { authorization: 'Bearer oa_test' }, url: '/api/studio-mcp' }, cap.res);
+    assert.equal(cap.status(), 401);
+    assert.match(cap.body(), /not an engineer yet/);
+    assert.doesNotMatch(cap.body(), /[Ff]irebase/);
+  } finally {
+    store.oauthAccess = access;
+    store.engineerInviteFor = invite;
+  }
+});
+
+test('a merged invited engineer keeps the office connection', async () => {
+  const store = require('../lib/portal/db');
+  const access = store.oauthAccess;
+  const invite = store.engineerInviteFor;
+  store.oauthAccess = async () => ({ role: 'engineer', email: 'lorraine@example.com', name: 'Lorraine Villaroel' });
+  store.engineerInviteFor = async () => ({ email: 'lorraine@example.com', name: 'Lorraine Villaroel' });
+  try {
+    const handler = require('../api/studio-mcp');
+    const cap = capture();
+    await handler({
+      method: 'POST',
+      headers: { authorization: 'Bearer oa_test', 'content-type': 'application/json' },
+      url: '/api/studio-mcp',
+      body: { jsonrpc: '2.0', id: 1, method: 'tools/list' },
+    }, cap.res);
+    assert.notEqual(cap.status(), 401);
+  } finally {
+    store.oauthAccess = access;
+    store.engineerInviteFor = invite;
+  }
 });

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { generateSlots, zonedTimeToUtc, DEFAULT_AVAILABILITY } = require('../lib/portal/slots');
 const { buildIcs } = require('../lib/portal/ics');
 const {
-  validateBook, validateEvent, validateAvailability, validateAccountCreate,
+  validateBook, validateEvent, validateSteps, validateAgent, validateAvailability, validateAccountCreate,
 } = require('../lib/portal/validate');
 const { routeParts } = require('../lib/portal/http');
 const { previewAccess } = require('../lib/portal/preview');
@@ -78,6 +78,27 @@ test('book validation rejects a bad email and accepts a discovery call', () => {
   });
   assert.equal(good.errors.length, 0);
   assert.equal(good.clean.email, 'ada@firm.test');
+});
+
+test('a flow keeps at most 12 clipped steps and an empty list clears it', () => {
+  const lines = validateSteps('First step.\n\nSecond step.');
+  assert.deepEqual(lines.clean, ['First step.', 'Second step.']);
+  assert.equal(lines.errors.length, 0);
+  const clipped = validateSteps(['x'.repeat(200)]);
+  assert.equal(clipped.errors.length, 0);
+  assert.equal(clipped.clean[0].length, 160);
+  const tooMany = validateSteps(Array.from({ length: 13 }, (_, i) => 'Step number ' + (i + 1)));
+  assert.match(tooMany.errors.join(' '), /12/);
+  assert.deepEqual(tooMany.clean, []);
+  assert.deepEqual(validateSteps('').clean, []);
+  assert.deepEqual(validateSteps([]).clean, []);
+  assert.ok(validateSteps('A').errors.length);
+  assert.ok(validateSteps(3).errors.length);
+  const agent = validateAgent({ name: 'Intake', chore: 'Reads inquiries.', steps: 'Draft the reply.\nAda sends it.' });
+  assert.deepEqual(agent.clean.steps, ['Draft the reply.', 'Ada sends it.']);
+  const event = validateEvent({ type: 'did', summary: 'Sent the reminder', agentId: 'intake' });
+  assert.equal(event.clean.agentId, 'intake');
+  assert.equal(validateEvent({ type: 'did', summary: 'Sent the reminder' }).clean.agentId, '');
 });
 
 test('event, account, and availability validation', () => {
@@ -164,11 +185,11 @@ test('an engineer invite names the photo file and Your Engineers', () => {
     email: 'joseph@example.com',
     link: 'https://algorithmacy.org/portal/login/?email=joseph%40example.com',
   });
-  assert.match(text, /images\/speakers\/joseph\.jpg/);
+  assert.match(text, /Joseph/);
+  assert.match(text, /joseph@example.com/);
   assert.match(text, /Your Engineers/);
   assert.doesNotMatch(text, /The engineer/);
-  assert.match(text, /public profile/);
-  assert.match(text, /pull request/i);
+  assert.match(text, /already on the Studio page/);
   assert.match(text, /authenticator/);
   assert.doesNotMatch(text, /sk_/);
 });

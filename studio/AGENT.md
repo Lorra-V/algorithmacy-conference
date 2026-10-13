@@ -52,7 +52,7 @@ For an engineer, follow `engineer_application` against `https://github.com/roger
 
 ## Stop here
 
-A booked call is not an account. A pull request does not sign an engineer in. Merging the page and sending an invite are two decisions.
+A booked call is not an account. A pull request is the application. The GitHub account that opens it is the account that can sign in. Access starts after that pull request is merged and an invite is sent. The Studio owner sends the invite. A line in the pull request, `Sign-in email: you@example.com`, lets that invite arrive by email.
 
 Hand the person the email, and stop, when the next step is any of these:
 

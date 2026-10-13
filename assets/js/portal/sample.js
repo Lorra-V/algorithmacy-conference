@@ -43,14 +43,39 @@ function fresh() {
       { email: 'jules@harborfinch.example', name: 'Jules Park', role: 'member', digest: false },
     ],
     agents: [
-      { id: 'intake', name: 'Intake', status: 'running', chore: 'Reads a new inquiry and drafts the first reply for Ada to send.' },
-      { id: 'chase', name: 'Chase', status: 'running', chore: 'Follows up on documents the firm is still waiting on.' },
+      {
+        id: 'intake',
+        name: 'Intake',
+        status: 'running',
+        chore: 'Reads a new inquiry and drafts the first reply for Ada to send.',
+        steps: [
+          'A new inquiry arrives.',
+          'Intake drafts the first reply.',
+          'Ada sends it.',
+        ],
+      },
+      {
+        id: 'chase',
+        name: 'Chase',
+        status: 'running',
+        chore: 'Follows up on documents the firm is still waiting on.',
+        steps: [
+          'A document is still missing.',
+          'Chase sends the reminder.',
+          'Chase stops when the document is in, or marks the matter blocked.',
+        ],
+      },
       {
         id: 'review',
         name: 'Review',
         status: 'paused',
         chore: 'Checks a client email before it goes out, when that kind of email has not been sent before.',
         pauseNote: 'Paused until Ada signs off a new kind of client email. It does not send mail while it is paused.',
+        steps: [
+          'A draft is a kind of email the firm has not sent before.',
+          'Review holds it for Ada.',
+          'It goes out only after she approves the wording.',
+        ],
       },
     ],
     activity: [

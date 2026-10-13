@@ -1,4 +1,5 @@
-import { api, authApi, esc, getAuth, getConfig, safeNext, setPreviewAccount, storeMfa, waitForUser } from './api.js';
+import { api, authApi, esc, getAuth, getConfig, safeNext, setPreviewAccount, signInWithGithub, storeMfa, waitForUser } from './api.js';
+import { authMessage } from './auth-message.js';
 import { ensureMfa } from './mfa-ui.js';
 import { SAMPLE_ID, bindSampleUser, resetSample, sampleAccount } from './sample.js';
 
@@ -60,6 +61,8 @@ let queued = null;
 
 const ROUTES = [
   ['/portal/admin/availability/', 'admin-availability', 'Availability'],
+  ['/portal/admin/engineers/', 'admin-engineers', 'Engineers'],
+  ['/portal/admin/leads/', 'admin-leads', 'Leads'],
   ['/portal/admin/account/', 'admin-account', 'Account'],
   ['/portal/admin/', 'admin', 'Accounts'],
   ['/portal/settings/', 'settings', 'Settings'],
@@ -77,6 +80,8 @@ const ROUTES = [
 const ENGINEER_PAGES = {
   admin: true,
   'admin-account': true,
+  'admin-leads': true,
+  'admin-engineers': true,
   'admin-availability': true,
 };
 
@@ -232,6 +237,8 @@ function rail(user) {
   if (isEngineer(user) && viewMode() === 'engineer') {
     return [
       ['admin', '/portal/admin/', 'Accounts'],
+      ['admin-leads', '/portal/admin/leads/', 'Leads'],
+      ['admin-engineers', '/portal/admin/engineers/', 'Engineers'],
       ['admin-availability', '/portal/admin/availability/', 'Availability'],
     ].map(railLink).join('');
   }
@@ -455,6 +462,7 @@ async function renderLogin() {
     '<p class="desk-status desk-field-wide" id="login-error" hidden></p>' +
     '<p class="portal-or desk-field-wide" id="login-note" role="status"></p>' +
     (cfg.configured ? '<div class="desk-field-wide"><button class="btn-quiet" type="button" id="google">Continue with Google</button></div>' : '') +
+    (cfg.configured ? '<div class="desk-field-wide"><button class="btn-quiet" type="button" id="github">Continue with GitHub</button></div>' : '') +
     '</form>' +
     '<p class="portal-or">Booked a call or sent a note, and no invite yet? That is expected. The account is created after the call. <a href="/book/">Book a 20-minute call</a>.</p>';
   const form = document.getElementById('login-form');
@@ -472,8 +480,20 @@ async function renderLogin() {
         body: JSON.stringify({ email: address, website: fd.get('website') || '' }),
       });
       const data = await res.json().catch(function () { return {}; });
-      if (!res.ok) throw new Error(data.error || 'We could not send that.');
-      document.getElementById('login-note').textContent = 'If that address has an account, a link is on its way. It works once.';
+      if (!res.ok) throw new Error(data.error || 'We could not send that link. Try again, or write to roger@algorithmacy.org.');
+      document.getElementById('login-note').textContent = 'If that address was invited, a link is on its way. It works once.';
+    } catch (e) {
+      err.hidden = false;
+      err.textContent = authMessage(e, 'We could not send that link. Try again, or write to roger@algorithmacy.org.');
+    }
+  });
+  const github = document.getElementById('github');
+  if (github) github.addEventListener('click', async function () {
+    const err = document.getElementById('login-error');
+    err.hidden = true;
+    try {
+      await signInWithGithub();
+      location.href = loginNext();
     } catch (e) {
       err.hidden = false;
       err.textContent = e.message;
@@ -490,12 +510,7 @@ async function renderLogin() {
       location.href = loginNext();
     } catch (e) {
       err.hidden = false;
-      const code = e && e.code;
-      err.textContent = code === 'auth/popup-blocked'
-        ? 'The browser blocked the Google window. Allow popups for this site, or use the email link.'
-        : (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request'
-          ? 'Google sign-in was closed before it finished.'
-          : (e.message || 'Google sign-in did not finish.'));
+      err.textContent = authMessage(e, 'Google sign-in did not finish. Use the email link.');
     }
   });
 }
@@ -520,7 +535,7 @@ async function renderFinish() {
     sessionStorage.removeItem('studioOauthReturn');
     location.replace(back.indexOf('/oauth/authorize?') === 0 ? back : '/portal/');
   } catch (e) {
-    note.textContent = e.message || 'That link did not work. Request another.';
+    note.textContent = authMessage(e, 'That link did not work. Request another from the sign-in page.');
   }
 }
 
@@ -564,7 +579,7 @@ function noAccount(main, me) {
   }
   if (me && me.user && me.user.google) {
     main.innerHTML =
-      '<p class="portal-empty">This Google address has no Studio account yet.</p>' +
+      '<p class="portal-empty">This Google address has no Studio account yet. An engineer signs in with the email the invite was sent to. A client books a call, and the account is created after it.</p>' +
       '<div class="portal-actions"><a class="btn" href="/book/">Book a 20-minute call</a></div>';
     return;
   }
@@ -608,27 +623,15 @@ function zoneName(timeZone) {
   }
 }
 
-function lastForAgent(rows, agentId) {
-  const mine = byNewest(rows, 'ts').filter(function (row) { return row.agentId === agentId; });
-  return mine[0] || null;
-}
-
 function agentName(agents, id) {
   const found = (agents || []).find(function (agent) { return agent.id === id; });
   return found ? found.name : '';
 }
 
-function agentCard(agent, rows) {
-  const last = lastForAgent(rows, agent.id);
-  const pause = agent.pauseNote || (agent.status === 'paused' ? 'Paused. It does not post until it is running again.' : '');
-  const lastLine = last
-    ? 'Last report ' + whenLabel(last.ts) + '. ' + last.summary
-    : 'No report yet.';
-  return '<article class="record piece">' +
+function agentCard(agent) {
+  return '<a class="record piece agent-card" href="?agent=' + encodeURIComponent(agent.id) + '">' +
     '<header class="piece-head"><h2>' + esc(agent.name) + '</h2><span class="status ' + statusClass(agent.status) + '">' + esc(label(agent.status)) + '</span></header>' +
-    '<p>' + esc(agent.chore) + '</p>' +
-    (pause ? '<p class="ledger-detail">' + esc(pause) + '</p>' : '') +
-    '<p class="ledger-detail">' + esc(lastLine) + '</p></article>';
+    '<p class="clamp">' + esc(agent.chore) + '</p></a>';
 }
 
 function reportCard(row, agents) {
@@ -639,9 +642,77 @@ function reportCard(row, agents) {
     : '';
   return '<article class="record piece">' +
     '<header class="piece-head"><p class="piece-meta">' + esc(meta) + '</p>' + flag + '</header>' +
-    '<p>' + esc(row.summary) + '</p>' +
-    (row.detail ? '<p class="ledger-detail">' + esc(row.detail) + '</p>' : '') +
-    '</article>';
+    '<p class="clamp">' + esc(row.summary) + '</p></article>';
+}
+
+function bindTabs(scope) {
+  const tabs = Array.from(scope.querySelectorAll('[role="tab"]'));
+  function select(index, focus) {
+    tabs.forEach(function (tab, i) {
+      const on = i === index;
+      tab.setAttribute('aria-selected', on ? 'true' : 'false');
+      tab.tabIndex = on ? 0 : -1;
+      const panel = document.getElementById(tab.getAttribute('aria-controls'));
+      if (panel) panel.hidden = !on;
+    });
+    if (focus) tabs[index].focus();
+  }
+  tabs.forEach(function (tab, index) {
+    tab.addEventListener('click', function () { select(index, false); });
+    tab.addEventListener('keydown', function (event) {
+      if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+      event.preventDefault();
+      const next = event.key === 'ArrowRight'
+        ? (index + 1) % tabs.length
+        : (index - 1 + tabs.length) % tabs.length;
+      select(next, true);
+    });
+  });
+}
+
+function tabList(label, tabs) {
+  return '<div class="portal-tabs" role="tablist" aria-label="' + esc(label) + '">' + tabs.map(function (tab, index) {
+    const on = index === 0;
+    return '<button type="button" role="tab" id="' + tab.id + '" aria-selected="' + (on ? 'true' : 'false') + '"' +
+      ' aria-controls="' + tab.panel + '"' + (on ? '' : ' tabindex="-1"') + '>' + esc(tab.label) + '</button>';
+  }).join('') + '</div>';
+}
+
+function progressPanel(agent, rows) {
+  const mine = byNewest(rows, 'ts').filter(function (row) { return row.agentId === agent.id; });
+  const pause = agent.pauseNote || (agent.status === 'paused' ? 'Paused. It does not post until it is running again.' : '');
+  const logs = mine.map(function (row) {
+    return ledgerRow(whenLabel(row.ts), statusClass(row.type), label(row.type), activityEntry(row));
+  }).join('');
+  return '<p class="agent-progress"><span class="status ' + statusClass(agent.status) + '">' + esc(label(agent.status)) + '</span></p>' +
+    (pause ? '<p class="role-note">' + esc(pause) + '</p>' : '') +
+    (logs ? ledger(logs) : empty('No reports yet.'));
+}
+
+function flowPanel(agent) {
+  const steps = agent.steps || [];
+  if (!steps.length) return empty('The flow is not written yet.');
+  return '<ol class="engineer-steps">' + steps.map(function (step) { return '<li>' + esc(step) + '</li>'; }).join('') + '</ol>';
+}
+
+function showAgent(main, agent, rows) {
+  setHead(agent.name, agent.chore);
+  document.title = agent.name + ' · Algorithmacy Studio';
+  const head = document.querySelector('#portal .page-head');
+  if (head) {
+    const back = document.createElement('p');
+    back.className = 'settings-back';
+    back.innerHTML = '<a href="' + esc(location.pathname) + '">Agents</a>';
+    head.before(back);
+  }
+  main.innerHTML =
+    tabList(agent.name, [
+      { id: 'tab-progress', panel: 'panel-progress', label: 'Progress' },
+      { id: 'tab-flow', panel: 'panel-flow', label: 'Flow' },
+    ]) +
+    '<div id="panel-progress" role="tabpanel" aria-labelledby="tab-progress">' + progressPanel(agent, rows) + '</div>' +
+    '<div id="panel-flow" role="tabpanel" aria-labelledby="tab-flow" hidden>' + flowPanel(agent) + '</div>';
+  bindTabs(main);
 }
 
 function approvalNotice(count) {
@@ -667,19 +738,43 @@ async function renderAgentsHome(me) {
   const [log, pending] = await Promise.all([api('activity'), api('approvals')]);
   const agents = log.agents || [];
   const rows = byNewest(log.activity || [], 'ts');
-  const cards = agents.map(function (agent) { return agentCard(agent, rows); }).join('');
-  const shown = rows.slice(0, 6);
-  const reports = shown.map(function (row) { return reportCard(row, agents); }).join('');
-  const more = rows.length > shown.length
+  const requested = new URLSearchParams(location.search).get('agent') || '';
+  if (requested) {
+    const agent = agents.find(function (item) { return item.id === requested; });
+    if (!agent) {
+      const head = document.querySelector('#portal .page-head');
+      if (head) {
+        const back = document.createElement('p');
+        back.className = 'settings-back';
+        back.innerHTML = '<a href="' + esc(location.pathname) + '">Agents</a>';
+        head.before(back);
+      }
+      main.innerHTML = empty('That agent is not here.');
+      return;
+    }
+    showAgent(main, agent, rows);
+    return;
+  }
+  const cards = agents.map(function (agent) { return agentCard(agent); }).join('');
+  const reports = rows.map(function (row) { return reportCard(row, agents); }).join('');
+  const more = rows.length >= 50
     ? '<p class="portal-more"><a href="/portal/activity/">Older reports</a></p>'
     : '';
   main.innerHTML =
     approvalNotice((pending.approvals || []).length) +
-    (cards || firstSession(me.account)) +
-    '<h2>Reports</h2>' +
+    tabList('Agents and reports', [
+      { id: 'tab-agents', panel: 'panel-agents', label: 'Agents' },
+      { id: 'tab-reports', panel: 'panel-reports', label: 'Reports' },
+    ]) +
+    '<div id="panel-agents" role="tabpanel" aria-labelledby="tab-agents">' +
+    (cards ? '<div class="card-grid">' + cards + '</div>' : firstSession(me.account)) +
+    '</div>' +
+    '<div id="panel-reports" role="tabpanel" aria-labelledby="tab-reports" hidden>' +
     '<p class="role-note">Your engineer posts a report from Claude or Cursor after a run.</p>' +
-    (reports || empty('No reports yet.')) +
-    more;
+    (reports ? '<div class="card-grid">' + reports + '</div>' : empty('No reports yet.')) +
+    more +
+    '</div>';
+  bindTabs(main);
 }
 
 async function renderActivity(me) {
@@ -1115,9 +1210,13 @@ async function renderReports(me) {
       : empty('No report yet. The first one is written at the start of the next month.'));
 }
 
+async function loadAdminDesk() {
+  return api('admin/accounts');
+}
+
 async function renderAdmin(me) {
-  const main = shell(me, 'Accounts', 'Create an account after a call. Leads from the form and the calendar land here.');
-  const data = await api('admin/accounts');
+  const main = shell(me, 'Accounts', 'Create an account after a call.');
+  const data = await loadAdminDesk();
   const accounts = (data.accounts || []).map(function (a) {
     return ledgerRow(
       { html: '<a href="/portal/admin/account/?id=' + esc(a.id) + '">' + esc(a.office) + '</a>' },
@@ -1126,37 +1225,9 @@ async function renderAdmin(me) {
       esc(a.kind) + '. ' + esc(label(a.status)) + '.',
     );
   }).join('');
-  const leads = (data.leads || []).map(function (l) {
-    const source = l.source === 'book' ? 'Calendar' : (l.source ? 'Form' : 'Lead');
-    const detail = [l.business, l.chore || l.intent].filter(Boolean).join('. ');
-    const labelName = l.name || l.email || 'Lead';
-    const bits = [];
-    if (l.email && l.email !== labelName) bits.push(l.email);
-    if (detail) bits.push(detail);
-    const who = '<b>' + esc(labelName) + '</b>' + (bits.length ? '<p class="ledger-detail">' + esc(bits.join('. ')) + '.</p>' : '');
-    return ledgerRow(whenLabel(l.start || l.createdAt), '', source, who);
-  }).join('');
-  const engineers = (data.engineers || []).map(function (row) {
-    const state = row.status !== 'claimed' ? 'Invited' : (row.profile === 'opened' ? 'Pull request opened' : 'Joined');
-    return ledgerRow(
-      row.name || row.email,
-      '',
-      state,
-      esc(row.email) + ' <button type="button" class="btn-quiet" data-reset-mfa="' + esc(row.email) + '">Reset authenticator</button>',
-    );
-  }).join('');
   main.innerHTML =
     '<p class="notice">Harbor &amp; Finch is a sample office, with agents, approvals, meetings, and a report. <button type="button" id="open-sample">Open it as the client</button></p>' +
     '<p class="role-note">Open the sample office, then use Leads for people who booked or wrote.</p>' +
-    '<h2>Invite an engineer</h2>' +
-    '<p class="role-note">They can open every account. The invite tells them to add a photo and a short bio in a pull request, the way Roger is already on the Studio page.</p>' +
-    '<form id="invite-engineer" class="desk-fields">' +
-    '<label class="desk-field"><span>Name</span><input name="name" required></label>' +
-    '<label class="desk-field"><span>Email</span><input type="email" name="email" required></label>' +
-    '<div class="desk-field-wide portal-actions"><button class="btn" type="submit">Send invite</button></div>' +
-    '<p class="desk-status desk-field-wide" id="engineer-error" hidden></p></form>' +
-    (engineers ? ledger(engineers, ['Name', 'Status', 'Email']) : empty('No engineers invited yet.')) +
-    connectionPanel('Connect Claude, Cursor, Grok, Muse, or OpenClaw to this engineer account. When it asks you to sign in, allow it as an engineer. It can open the offices, set up agents, and post reports. It cannot pay, and it cannot invite another engineer.') +
     '<h2>New account</h2>' +
     '<form id="new-account" class="desk-fields">' +
     '<label class="desk-field"><span>Business</span><input name="office" required></label>' +
@@ -1167,32 +1238,8 @@ async function renderAdmin(me) {
     '<p class="desk-status desk-field-wide" id="admin-error" hidden></p></form>' +
     '<section class="portal-section"><h2>Accounts</h2>' +
     (accounts ? ledger(accounts) : empty('No accounts yet. The first one is created with the form above, after a call.')) +
-    '</section>' +
-    '<section class="portal-section"><h2>Leads</h2>' +
-    (leads ? ledger(leads, ['When', 'Source', 'Lead']) : empty('No leads yet. Inquiries from the Studio form and bookings from the calendar appear here.')) +
-    '</section>' +
-    '<p class="portal-more"><a href="/portal/admin/availability/">Availability</a></p>';
+    '</section>';
   document.getElementById('open-sample').addEventListener('click', openSampleOffice);
-  main.querySelectorAll('[data-reset-mfa]').forEach(function (button) {
-    button.addEventListener('click', function () { void resetAuthenticator(button); });
-  });
-  document.getElementById('invite-engineer').addEventListener('submit', async function (event) {
-    event.preventDefault();
-    const err = document.getElementById('engineer-error');
-    err.hidden = true;
-    const fd = new FormData(event.target);
-    try {
-      await api('admin/engineers', {
-        method: 'POST',
-        body: { name: fd.get('name'), email: fd.get('email') },
-      });
-      event.target.reset();
-      await refresh();
-    } catch (e) {
-      err.hidden = false;
-      err.textContent = e.message;
-    }
-  });
   document.getElementById('new-account').addEventListener('submit', async function (event) {
     event.preventDefault();
     const err = document.getElementById('admin-error');
@@ -1204,6 +1251,124 @@ async function renderAdmin(me) {
         body: { office: fd.get('office'), kind: fd.get('kind'), name: fd.get('name'), email: fd.get('email') },
       });
       await go('/portal/admin/account/?id=' + encodeURIComponent(created.account.id));
+    } catch (e) {
+      err.hidden = false;
+      err.textContent = e.message;
+    }
+  });
+}
+
+async function renderAdminLeads(me) {
+  const main = shell(me, 'Leads', 'People who booked a call or wrote from the Studio form.');
+  const data = await loadAdminDesk();
+  const leads = (data.leads || []).map(function (l) {
+    const source = l.source === 'book' ? 'Calendar' : (l.source ? 'Form' : 'Lead');
+    const detail = [l.business, l.chore || l.intent].filter(Boolean).join('. ');
+    const labelName = l.name || l.email || 'Lead';
+    const bits = [];
+    if (l.email && l.email !== labelName) bits.push(l.email);
+    if (detail) bits.push(detail);
+    const who = '<b>' + esc(labelName) + '</b>' + (bits.length ? '<p class="ledger-detail">' + esc(bits.join('. ')) + '.</p>' : '');
+    return ledgerRow(whenLabel(l.start || l.createdAt), '', source, who);
+  }).join('');
+  main.innerHTML = leads
+    ? ledger(leads, ['When', 'Source', 'Lead'])
+    : empty('No leads yet. Inquiries from the Studio form and bookings from the calendar appear here.');
+}
+
+async function renderAdminEngineers(me) {
+  const main = shell(me, 'Engineers', 'Invite someone after their photo and profile are merged.');
+  const data = await loadAdminDesk();
+  let applications = [];
+  let applicationNote = '';
+  if (me.user && me.user.owner) {
+    try {
+      const listed = await api('admin/engineers/applications');
+      applications = listed.applications || [];
+    } catch (e) {
+      applicationNote = e.message;
+    }
+  }
+  const engineers = (data.engineers || []).map(function (row) {
+    const state = row.status !== 'claimed' ? 'Invited' : (row.profile === 'opened' ? 'Pull request opened' : 'Joined');
+    return ledgerRow(
+      row.name || row.email,
+      '',
+      state,
+      esc(row.email || 'GitHub sign-in') + (row.github ? ' · ' + esc(row.github) : '') + (row.email ? ' <button type="button" class="btn-quiet" data-reset-mfa="' + esc(row.email) + '">Reset authenticator</button>' : ''),
+    );
+  }).join('');
+  main.innerHTML =
+    (me.user && me.user.owner
+      ? '<h2>Engineer applications</h2>' +
+        '<p class="role-note">The pull request stays tied to the GitHub account that opened it. Merge it, then invite that account.</p>' +
+        (applicationNote ? '<p class="desk-status">' + esc(applicationNote) + '</p>' : '') +
+        (applications.length ? ledger(applications.map(function (row) {
+          const mail = row.email
+            ? esc(row.email)
+            : 'No sign-in email on the pull request. They sign in with GitHub.';
+          const action = row.merged
+            ? '<button type="button" class="btn-quiet" data-invite-github="' + esc(row.login) + '" data-invite-name="' + esc(row.name) + '" data-invite-pr="' + esc(row.pr) + '" data-invite-email="' + esc(row.email || '') + '">Invite</button>'
+            : 'Merge the pull request before the invite.';
+          return ledgerRow(
+            esc(row.name) + ' · ' + esc(row.login),
+            '',
+            row.merged ? 'Merged' : 'Open',
+            mail + '<p class="ledger-detail">PR ' + esc(row.pr) + '. ' + action + '</p>',
+          );
+        }).join(''), ['Person', 'Status', 'Pull request']) : empty('No engineer pull requests yet.')) +
+        '<h2>Invite an engineer</h2>' +
+        '<p class="role-note">Their photo and profile have to be merged under Your Engineers first. This invite is what lets them sign in.</p>' +
+        '<form id="invite-engineer" class="desk-fields">' +
+        '<label class="desk-field"><span>Name</span><input name="name" required></label>' +
+        '<label class="desk-field"><span>Email</span><input type="email" name="email" required></label>' +
+        '<div class="desk-field-wide portal-actions"><button class="btn" type="submit">Send invite</button></div>' +
+        '<p class="desk-status desk-field-wide" id="engineer-error" hidden></p></form>'
+      : '<h2>Engineers</h2>' +
+        '<p class="role-note">The Studio owner sends an engineer invite after the photo and profile are merged.</p>') +
+    (engineers ? ledger(engineers, ['Name', 'Status', 'Email']) : empty('No engineers invited yet.')) +
+    connectionPanel('Connect Claude, Cursor, Grok, Muse, or OpenClaw to this engineer account. When it asks you to sign in, allow it as an engineer. It can open the offices, set up agents, and post reports. It cannot pay, and it cannot invite another engineer.');
+  main.querySelectorAll('[data-reset-mfa]').forEach(function (button) {
+    button.addEventListener('click', function () { void resetAuthenticator(button); });
+  });
+  main.querySelectorAll('[data-invite-github]').forEach(function (button) {
+    button.addEventListener('click', async function () {
+      button.disabled = true;
+      const err = document.getElementById('engineer-error');
+      if (err) err.hidden = true;
+      try {
+        await api('admin/engineers', {
+          method: 'POST',
+          body: {
+            name: button.getAttribute('data-invite-name'),
+            github: button.getAttribute('data-invite-github'),
+            pr: Number(button.getAttribute('data-invite-pr')),
+            email: button.getAttribute('data-invite-email') || '',
+          },
+        });
+        await refresh();
+      } catch (e) {
+        button.disabled = false;
+        if (err) {
+          err.hidden = false;
+          err.textContent = e.message;
+        }
+      }
+    });
+  });
+  const inviteEngineer = document.getElementById('invite-engineer');
+  if (inviteEngineer) inviteEngineer.addEventListener('submit', async function (event) {
+    event.preventDefault();
+    const err = document.getElementById('engineer-error');
+    err.hidden = true;
+    const fd = new FormData(event.target);
+    try {
+      await api('admin/engineers', {
+        method: 'POST',
+        body: { name: fd.get('name'), email: fd.get('email') },
+      });
+      event.target.reset();
+      await refresh();
     } catch (e) {
       err.hidden = false;
       err.textContent = e.message;
@@ -1224,13 +1389,15 @@ async function renderAdminAccount(me) {
   const agents = (data.agents || []).map(function (a) {
     const next = a.status === 'running' ? 'paused' : 'running';
     const verb = a.status === 'running' ? 'Pause' : 'Mark running';
+    const steps = (a.steps || []).join('\n');
     return ledgerRow(
       a.name,
       statusClass(a.status),
       label(a.status),
       esc(a.chore) + '<div class="portal-actions"><button type="button" class="btn-quiet" data-status="' + esc(a.id) + '" data-next="' + next + '">' + verb + '</button>' +
       (a.keyWaiting ? '<button type="button" class="btn-quiet" data-show-key="' + esc(a.id) + '">Show the key once</button>' : '') +
-      '</div>',
+      '</div>' +
+      '<form class="agent-flow" data-flow="' + esc(a.id) + '"><label><span>Flow, one step per line</span><textarea name="steps" rows="4" maxlength="2200">' + esc(steps) + '</textarea></label><button class="btn-quiet" type="submit">Save flow</button></form>',
     );
   }).join('');
   const pending = (data.approvals || []).filter(function (a) { return a.status === 'pending'; });
@@ -1252,7 +1419,7 @@ async function renderAdminAccount(me) {
     '<div class="desk-field-wide portal-actions"><button class="btn" type="submit">Save</button><p class="saved" id="reply-ok" hidden>Saved.</p></div></form>' +
     (resets ? '<section class="portal-section"><h2>Authenticator</h2><p class="role-note">If someone loses the authenticator and the backup codes, clear it. They set up a new one the next time they sign in.</p>' + resets + '</section>' : '') +
     '<section class="portal-section"><h2>Agents</h2>' + (agents ? ledger(agents) : empty('No agents yet.')) +
-    '<form id="new-agent" class="desk-fields"><label class="desk-field"><span>Name</span><input name="name" required></label><label class="desk-field"><span>Chore</span><input name="chore" required></label><div class="desk-field-wide portal-actions"><button class="btn" type="submit">Create agent</button></div></form>' +
+    '<form id="new-agent" class="desk-fields"><label class="desk-field"><span>Name</span><input name="name" required></label><label class="desk-field"><span>Chore</span><input name="chore" required></label><label class="desk-field desk-field-wide"><span>Flow, one step per line</span><textarea name="steps" rows="4" placeholder="Optional. A new inquiry arrives."></textarea></label><div class="desk-field-wide portal-actions"><button class="btn" type="submit">Create agent</button></div></form>' +
     '<p class="key-once" id="new-key" hidden></p></section>' +
     '<section class="portal-section"><h2>Note</h2><form id="note" class="desk-fields"><label class="desk-field desk-field-wide"><span>What happened</span><input name="summary" required></label><div class="desk-field-wide portal-actions"><button class="btn" type="submit">Post to the activity log</button></div></form></section>' +
     '<section class="portal-section"><h2>Approvals</h2>' + (approvals ? ledger(approvals) : empty('Nothing is waiting.')) + '</section>' +
@@ -1277,7 +1444,7 @@ async function renderAdminAccount(me) {
     err.hidden = true;
     const fd = new FormData(event.target);
     try {
-      const created = await api('admin/agents', { method: 'POST', body: { accountId: id, name: fd.get('name'), chore: fd.get('chore') } });
+      const created = await api('admin/agents', { method: 'POST', body: { accountId: id, name: fd.get('name'), chore: fd.get('chore'), steps: fd.get('steps') } });
       const key = document.getElementById('new-key');
       key.hidden = false;
       key.textContent = 'Copy this key now. It is not shown again. ' + created.agent.apiKey;
@@ -1294,6 +1461,23 @@ async function renderAdminAccount(me) {
         key.hidden = false;
         key.textContent = 'Copy this key now. It is not shown again. ' + shown.apiKey;
         btn.hidden = true;
+      } catch (e) { show(e); }
+    });
+  });
+  main.querySelectorAll('form.agent-flow').forEach(function (form) {
+    form.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      err.hidden = true;
+      try {
+        await api('admin/agents/flow', {
+          method: 'POST',
+          body: {
+            accountId: id,
+            agentId: form.getAttribute('data-flow'),
+            steps: new FormData(form).get('steps'),
+          },
+        });
+        await refresh();
       } catch (e) { show(e); }
     });
   });
@@ -1559,6 +1743,8 @@ const PAGES = {
   account: renderAccount,
   reports: renderReports,
   admin: renderAdmin,
+  'admin-leads': renderAdminLeads,
+  'admin-engineers': renderAdminEngineers,
   'admin-account': renderAdminAccount,
   'admin-availability': renderAvailability,
 };

@@ -1,4 +1,5 @@
 import { SAMPLE_ID, sampleApi } from './sample.js';
+import { authMessage, plainPortalError } from './auth-message.js';
 
 const CDN = 'https://www.gstatic.com/firebasejs/12.17.1/';
 
@@ -41,6 +42,38 @@ export function authApi() {
   return authFns;
 }
 
+export async function signInWithGithub() {
+  const auth = await getAuth();
+  if (!auth) throw new Error('Sign-in is not open yet. Write to topanga@algorithmacy.org.');
+  const fns = authApi();
+  const provider = new fns.GithubAuthProvider();
+  provider.addScope('read:user');
+  provider.addScope('user:email');
+  try {
+    const result = await fns.signInWithPopup(auth, provider);
+    const credential = fns.GithubAuthProvider.credentialFromResult(result);
+    const token = credential && credential.accessToken;
+    if (!token) throw new Error('GitHub did not confirm this sign-in. Try again.');
+    const idToken = await result.user.getIdToken();
+    const res = await fetch('/api/portal/auth/github', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
+      body: JSON.stringify({ token }),
+    });
+    const data = await res.json().catch(function () { return {}; });
+    if (!res.ok) {
+      try { await fns.signOut(auth); } catch (e) { /* leave the message */ }
+      throw new Error(plainPortalError(data.error || 'This GitHub account could not be connected.'));
+    }
+    return data;
+  } catch (e) {
+    if (e && e.code === 'auth/operation-not-allowed') {
+      throw new Error('GitHub sign-in is not open yet. Write to roger@algorithmacy.org.');
+    }
+    throw new Error(authMessage(e, 'GitHub sign-in did not finish. Try again.'));
+  }
+}
+
 export function storeMfa(token) {
   try {
     if (token) sessionStorage.setItem('studioMfa', token);
@@ -71,7 +104,7 @@ export async function api(path, opts) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const err = new Error(data.error || 'Something went wrong.');
+    const err = new Error(plainPortalError(data.error));
     err.status = res.status;
     if (data.mfa) err.mfa = data.mfa;
     throw err;

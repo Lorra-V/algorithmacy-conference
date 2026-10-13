@@ -7,6 +7,8 @@ const core = require('../lib/submission-core');
 const store = require('../lib/portal/db');
 const { siteUrl } = require('../lib/portal/http');
 const { wwwAuthenticate } = require('../lib/portal/oauth');
+const { adminEmails } = require('../lib/portal/auth');
+const { publishedEngineer } = require('../lib/portal/published-engineers');
 const { handleRpc } = require('../lib/portal/studio-mcp');
 
 module.exports = async (req, res) => {
@@ -25,16 +27,17 @@ module.exports = async (req, res) => {
   }
 
   const token = keyFrom(req);
-  let row;
+  let actor;
   try {
-    row = await actorFrom(token);
+    actor = await actorFrom(token);
   } catch (e) {
     console.error('studio mcp key', e);
     res.statusCode = 503;
     res.setHeader('Content-Type', 'application/json');
-    return res.end(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32000, message: 'The connector is not open yet.' } }));
+    return res.end(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32000, message: 'The connector is not open yet. Try again shortly.' } }));
   }
-  if (!row) return deny(res, token ? 'invalid_token' : '');
+  if (!actor.row) return deny(res, actor.error, actor.message);
+  const row = actor.row;
   if (req.method === 'GET') {
     res.statusCode = 405;
     res.setHeader('WWW-Authenticate', wwwAuthenticate(siteUrl(), ''));
@@ -42,7 +45,7 @@ module.exports = async (req, res) => {
     return res.end(JSON.stringify({
       jsonrpc: '2.0',
       id: null,
-      error: { code: -32000, message: 'POST JSON-RPC to this endpoint. Sign in with OAuth.' },
+      error: { code: -32000, message: 'POST JSON-RPC to this endpoint. Sign in from the assistant first.' },
     }));
   }
 
@@ -94,22 +97,45 @@ module.exports = async (req, res) => {
   return res.end(JSON.stringify(out));
 };
 
-function deny(res, error) {
+function deny(res, error, message) {
   res.statusCode = 401;
   res.setHeader('WWW-Authenticate', wwwAuthenticate(siteUrl(), error));
   res.setHeader('Content-Type', 'application/json');
   res.end(JSON.stringify({
     jsonrpc: '2.0',
     id: null,
-    error: { code: -32001, message: 'Sign in is required.' },
+    error: {
+      code: -32001,
+      message: message || 'Sign in is required. Use the email the invite went to, then the authenticator.',
+    },
   }));
 }
 
 async function actorFrom(token) {
-  if (!token || !String(token).startsWith('oa_')) return null;
+  if (!token || !String(token).startsWith('oa_')) {
+    return {
+      row: null,
+      error: token ? 'invalid_token' : '',
+      message: token
+        ? 'That sign-in is not valid. Connect again from the assistant.'
+        : 'Sign in is required. Use the email the invite went to, then the authenticator.',
+    };
+  }
   const row = await store.oauthAccess(token);
-  if (!row || (row.role !== 'engineer' && row.role !== 'client')) return null;
-  return row;
+  if (!row || (row.role !== 'engineer' && row.role !== 'client')) {
+    return { row: null, error: 'invalid_token', message: 'That sign-in is not valid. Connect again from the assistant.' };
+  }
+  if (row.role === 'engineer' && !adminEmails().includes(String(row.email || '').toLowerCase())) {
+    const invite = await store.engineerInviteFor(row.email);
+    if (!invite || !publishedEngineer(invite.name || row.name)) {
+      return {
+        row: null,
+        error: 'insufficient_scope',
+        message: 'This address is not an engineer yet. The photo and profile have to be merged under Your Engineers, and the Studio owner has to send an invite.',
+      };
+    }
+  }
+  return { row };
 }
 
 function keyFrom(req) {

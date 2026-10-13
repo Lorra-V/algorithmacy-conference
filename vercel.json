@@ -38,6 +38,11 @@
     { "path": "/api/cron?job=digest", "schedule": "0 12 * * 1" },
     { "path": "/api/cron?job=reports", "schedule": "0 13 1 * *" }
   ],
+  "functions": {
+    "api/portal.js": { "includeFiles": "{studio/index.html,images/speakers/**}" },
+    "api/portal/[...route].js": { "includeFiles": "{studio/index.html,images/speakers/**}" },
+    "api/studio-mcp.js": { "includeFiles": "{studio/index.html,images/speakers/**}" }
+  },
   "headers": [
     {
       "source": "/(.*)",

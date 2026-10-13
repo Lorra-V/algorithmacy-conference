@@ -145,6 +145,112 @@
   color: var(--ink-2);
 }
 .piece > p{ margin: 10px 0 0; }
+.portal-tabs{
+  display: flex;
+  gap: 4px;
+  margin: 0 0 18px;
+  border-bottom: 1px solid var(--rule);
+}
+.portal-tabs button{
+  font-family: var(--sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ink-2);
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 8px 12px 10px;
+  cursor: pointer;
+}
+.portal-tabs button:hover{ color: var(--ink); }
+.portal-tabs button[aria-selected="true"]{
+  color: var(--ink);
+  font-weight: 600;
+  border-bottom-color: var(--blueback);
+}
+.portal-tabs button:focus-visible{
+  outline: 2px solid var(--blueback);
+  outline-offset: -2px;
+}
+.card-grid{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+}
+@media (min-width: 700px){
+  .card-grid{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.card-grid .piece{
+  margin: 0;
+  padding: 12px 12px 14px;
+  min-width: 0;
+}
+.card-grid .piece-head{ gap: 8px; align-items: start; }
+.card-grid .piece-head h2{ font-size: 1rem; line-height: 1.25; }
+.card-grid .piece-head .status,
+.card-grid .piece-meta{ font-size: 0.75rem; }
+.card-grid .clamp{
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  margin: 8px 0 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+a.agent-card{
+  display: block;
+  color: var(--ink);
+  text-decoration: none;
+}
+a.agent-card:hover{ border-color: var(--ink); }
+a.agent-card:focus-visible{
+  outline: 2px solid var(--blueback);
+  outline-offset: 2px;
+}
+.agent-progress{
+  margin: 0 0 12px;
+  font-family: var(--sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.agent-progress .status.waiting{ color: var(--blueback); }
+.agent-progress .status.blocked{ color: var(--alert); }
+.agent-flow{
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 12px;
+  max-width: 36rem;
+}
+.agent-flow span{
+  font-family: var(--sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.agent-flow textarea{
+  font-family: var(--sans);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  width: 100%;
+  min-height: 5.5rem;
+  resize: vertical;
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  padding: 8px 10px;
+  background: #fff;
+  color: var(--ink);
+}
+.agent-flow textarea:focus{
+  outline: 2px solid var(--blueback);
+  outline-offset: 0;
+  border-color: var(--blueback);
+}
 .piece-draft{
   margin: 12px 0 0;
   padding: 12px 14px;
