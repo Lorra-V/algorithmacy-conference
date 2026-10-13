@@ -35,7 +35,7 @@ const FRIENDLY_SEND_ERROR =
 
 const core = require('../lib/submission-core');
 
-module.exports = async (req, res) => {
+async function handler(req, res) {
   if (req.method !== 'POST') {
     res.statusCode = 405;
     res.setHeader('Allow', 'POST');
@@ -58,53 +58,27 @@ module.exports = async (req, res) => {
     return res.json({ error: errors[0], errors });
   }
 
-  const ip = clientIp(req);
   try {
-    await core.enforceRate({
-      email: clean.email,
-      ip,
-      scope: 'studio',
-      limits: { ip: 5, email: 5 },
-      message: 'Too many attempts. Please email topanga@algorithmacy.org, or try again in an hour.',
-    });
+    await deliverInquiry(clean, req);
   } catch (e) {
-    const status = e.status === 429 ? 429 : 503;
+    const status = e.status === 429 ? 429 : (e.status === 502 ? 502 : 503);
     res.statusCode = status;
     return res.json({
       error: status === 429
         ? e.message
-        : 'The form is not available right now. Write to topanga@algorithmacy.org.',
+        : (status === 502
+          ? FRIENDLY_SEND_ERROR
+          : (e.status === 503 && e.message === FRIENDLY_SEND_ERROR
+            ? FRIENDLY_SEND_ERROR
+            : 'The form is not available right now. Write to topanga@algorithmacy.org.')),
     });
   }
 
-  const token = String(process.env.HOSTINGER_MAIL_API_TOKEN || '').trim();
-  if (!token) {
-    console.error('studio inquiry: HOSTINGER_MAIL_API_TOKEN is not set');
-    res.statusCode = 503;
-    return res.json({ error: FRIENDLY_SEND_ERROR });
-  }
-
-  const payload = mailPayload(clean);
-  try {
-    await sendViaHostinger(token, payload);
-  } catch (e) {
-    console.error('studio inquiry email error', e && e.message ? e.message : e);
-    res.statusCode = 502;
-    return res.json({ error: FRIENDLY_SEND_ERROR });
-  }
-
-  try {
-    const { recordLead } = require('../lib/portal/leads');
-    await recordLead(clean);
-  } catch (e) {
-    console.error('studio lead store', e);
-  }
-
   return res.json({ ok: true });
-};
+}
 
 
-function validateInquiry(b) {
+function validateInquiry(b, options) {
   const errors = [];
   const name = oneLine(b.name);
   if (name.length < 2 || name.length > 120) errors.push('Your name is required.');
@@ -142,14 +116,16 @@ function validateInquiry(b) {
     errors.push('Please agree to the Terms of Service and Privacy Policy.');
   }
 
-  const started = Number(b.started);
-  if (!Number.isFinite(started)) {
-    errors.push('Please reload the page and try again.');
-  } else {
-    const elapsed = Date.now() - started;
-    if (elapsed < MIN_FILL_MS) errors.push('Please wait a moment and send it again.');
-    else if (elapsed > MAX_AGE_MS || elapsed < -CLOCK_SKEW_MS) {
+  if (!(options && options.skipTimer)) {
+    const started = Number(b.started);
+    if (!Number.isFinite(started)) {
       errors.push('Please reload the page and try again.');
+    } else {
+      const elapsed = Date.now() - started;
+      if (elapsed < MIN_FILL_MS) errors.push('Please wait a moment and send it again.');
+      else if (elapsed > MAX_AGE_MS || elapsed < -CLOCK_SKEW_MS) {
+        errors.push('Please reload the page and try again.');
+      }
     }
   }
 
@@ -159,6 +135,37 @@ function validateInquiry(b) {
     errors,
     clean: { intent, name, business, email, phone, message, office, officeType },
   };
+}
+
+async function deliverInquiry(clean, req) {
+  await core.enforceRate({
+    email: clean.email,
+    ip: clientIp(req || {}),
+    scope: 'studio',
+    limits: { ip: 5, email: 5 },
+    message: 'Too many attempts. Please email topanga@algorithmacy.org, or try again in an hour.',
+  });
+  const token = String(process.env.HOSTINGER_MAIL_API_TOKEN || '').trim();
+  if (!token) {
+    console.error('studio inquiry: HOSTINGER_MAIL_API_TOKEN is not set');
+    const err = new Error(FRIENDLY_SEND_ERROR);
+    err.status = 503;
+    throw err;
+  }
+  try {
+    await sendViaHostinger(token, mailPayload(clean));
+  } catch (e) {
+    console.error('studio inquiry email error', e && e.message ? e.message : e);
+    const err = new Error(FRIENDLY_SEND_ERROR);
+    err.status = 502;
+    throw err;
+  }
+  try {
+    const { recordLead } = require('../lib/portal/leads');
+    await recordLead(clean);
+  } catch (e) {
+    console.error('studio lead store', e);
+  }
 }
 
 function mailPayload(clean) {
@@ -258,6 +265,13 @@ async function readBody(req) {
     throw err;
   }
 }
+
+module.exports = handler;
+module.exports.validateInquiry = validateInquiry;
+module.exports.honeypotFilled = honeypotFilled;
+module.exports.deliverInquiry = deliverInquiry;
+module.exports.OFFICES = OFFICES;
+module.exports.FRIENDLY_SEND_ERROR = FRIENDLY_SEND_ERROR;
 
 async function readRaw(req) {
   const chunks = [];

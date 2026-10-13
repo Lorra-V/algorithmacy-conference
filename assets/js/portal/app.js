@@ -1062,7 +1062,7 @@ function connectionPanel(lead) {
   return '<section class="portal-section"><h2>Connect an assistant</h2>' +
     '<p class="role-note">' + esc(lead) + '</p>' +
     '<p class="key-once">' + esc(url) + '</p>' +
-    '<p class="role-note">Paste that URL into Claude, Cursor, or Grok. It will ask you to sign in. There is no key to copy.</p></section>';
+    '<p class="role-note">Paste that URL into Claude, Cursor, Grok, Muse, or OpenClaw. It will ask you to sign in. There is no key to copy.</p></section>';
 }
 
 async function renderSettings(me) {
@@ -1075,7 +1075,7 @@ async function renderSettings(me) {
     ['/portal/reports/', 'Monthly report', 'The written summary of the month.'],
     ['/portal/account/', 'People', 'Who can open this account, and who gets the weekly note.'],
   ];
-  main.innerHTML = connectionPanel('Claude, Cursor, Grok, or any other assistant that signs in. Allow it for this office. It can see this office and do what you can do here. It cannot pay, and it cannot open another office.') +
+  main.innerHTML = connectionPanel('Claude, Cursor, Grok, Muse, or OpenClaw. Allow it for this office. It can see this office and do what you can do here. It cannot pay, and it cannot open another office.') +
     '<nav class="settings-list" aria-label="Settings">' + items.map(function (item) {
     return '<a href="' + item[0] + '"><span>' + item[1] + '</span><small>' + item[2] + '</small></a>';
   }).join('') + '</nav>';
@@ -1156,7 +1156,7 @@ async function renderAdmin(me) {
     '<div class="desk-field-wide portal-actions"><button class="btn" type="submit">Send invite</button></div>' +
     '<p class="desk-status desk-field-wide" id="engineer-error" hidden></p></form>' +
     (engineers ? ledger(engineers, ['Name', 'Status', 'Email']) : empty('No engineers invited yet.')) +
-    connectionPanel('Connect Claude, Cursor, or Grok to this engineer account. When it asks you to sign in, allow it as an engineer. It can open the offices, set up agents, and post reports. It cannot pay, and it cannot invite another engineer.') +
+    connectionPanel('Connect Claude, Cursor, Grok, Muse, or OpenClaw to this engineer account. When it asks you to sign in, allow it as an engineer. It can open the offices, set up agents, and post reports. It cannot pay, and it cannot invite another engineer.') +
     '<h2>New account</h2>' +
     '<form id="new-account" class="desk-fields">' +
     '<label class="desk-field"><span>Business</span><input name="office" required></label>' +

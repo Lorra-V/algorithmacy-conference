@@ -8,7 +8,7 @@ Algorithmacy names the worker-level capacity behind triadic, algorithmically-med
 - [Home](https://algorithmacy.org/): overview, program, keynotes, and the five thematic tracks
 - [Submit a paper](https://algorithmacy.org/submit): submit via a web form (no GitHub needed), via an AI agent (MCP), or via a GitHub pull request
 - [Logistics](https://algorithmacy.org/logistics): venue, getting there, accommodation, visas, registration, travel support
-- [Studio](https://algorithmacy.org/studio): an engineer sets up agents for the chores of an owner-run office and manages them. $5,000 to set up, $1,000 a month, month to month after a day-30 checkpoint. Law firms first. Book a call at [algorithmacy.org/book](https://algorithmacy.org/book). Clients sign in at [algorithmacy.org/portal](https://algorithmacy.org/portal).
+- [Studio](https://algorithmacy.org/studio): an engineer sets up agents for the chores of an owner-run office and manages them. $5,000 to set up, $1,000 a month, month to month after a day-30 checkpoint. Law firms first. Book a call at [algorithmacy.org/book](https://algorithmacy.org/book). Clients sign in at [algorithmacy.org/portal](https://algorithmacy.org/portal). An agent starts at [https://algorithmacy.org/studio/AGENT.md](https://algorithmacy.org/studio/AGENT.md).
 - [Tracks & questions](https://algorithmacy.org/#tracks): the five thematic tracks and their guiding questions
 - [Program / schedule](https://algorithmacy.org/#schedule): two paper days, a Trinidad field day, four keynotes
 - [Keynotes](https://algorithmacy.org/#keynotes): keynote speakers
