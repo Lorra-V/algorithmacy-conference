@@ -27,7 +27,7 @@
       <a href="/">Conference</a>
       <a href="/studio">Studio</a>
       <a href="https://cohorts.algorithmacy.org" target="_blank" rel="noopener">Cohorts<span class="visually-hidden"> (opens in a new tab)</span></a>
-      <a href="/portal/">Client login</a>
+      <a href="/portal/">Sign in</a>
     </nav>
   </header>
 
@@ -36,7 +36,7 @@
   <section class="lead lead-single" aria-labelledby="lead-title">
     <div>
       <h1 id="lead-title">How to become an Algorithmacy engineer.</h1>
-      <p class="lead-text">You open a pull request. It adds your photo and details to the Studio page, and it shows that you can do the work. If it is approved, two things happen: the page is updated, and the email in the pull request is added to the engineer list. Then you can sign in.</p>
+      <p class="lead-text">You open a pull request. It is the application. It adds your photo and two sentences a client could read under Your Engineers, and it shows that you can do the work. It does not sign you in.</p>
       <p class="lead-terms">Opening a pull request does not assign you a client. It is not a job offer, and it does not set a salary. The client pays the studio. The engineer is the named person on an account.</p>
       <p class="lead-actions">
         <a class="btn" href="https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference">Open the repository</a>
@@ -73,11 +73,11 @@
         </li>
         <li>
           <span class="when">3</span>
-          <p><b>Add yourself on the Studio page.</b> In <code>studio/index.html</code>, find “The engineer.” Copy the person block that is already there and put yours after it. Change the photo path, your name, two sentences a client could read, and your LinkedIn link.</p>
+          <p><b>Add yourself on the Studio page.</b> In <code>studio/index.html</code>, find “Your Engineers.” Copy either person block and put yours after it. Change the photo path, your name, two sentences a client could read, and your LinkedIn link.</p>
         </li>
         <li>
           <span class="when">4</span>
-          <p><b>Put the rest in the pull request description,</b> not in the page. The sign-in email, the chore, and the sample report stay off the public page.</p>
+          <p><b>Put the rest in the pull request description,</b> not in the page. The sign-in email, the chore, who signs off, and the sample report stay off the public page.</p>
         </li>
         <li>
           <span class="when">5</span>
@@ -97,7 +97,7 @@
       <ol class="call">
         <li>
           <span class="when">Email</span>
-          <p><b>The address you will use to sign in.</b> Write it in the pull request description. A GitHub <code>noreply</code> address is not enough. This is the address that gets added to the engineer list if you are approved. It is not printed on the Studio page. Anyone who can see the pull request can see this address. Sign-in also asks for a code from an authenticator app. The address alone does not open the portal.</p>
+          <p><b>The address you will use to sign in.</b> Write it in the pull request description. A GitHub <code>noreply</code> address is not enough. An invite can be sent to this address. It is not printed on the Studio page. Anyone who can see the pull request can see this address. Sign-in also asks for a code from an authenticator app. The address alone does not open the portal.</p>
         </li>
         <li>
           <span class="when">Chore</span>
@@ -121,9 +121,9 @@
       <p>Two steps, both required.</p>
     </div>
     <div class="part-body">
-      <p>If the pull request shows those four things, and the page block matches the engineers already there, it can be merged. Merging updates the Studio page.</p>
-      <p>The email from the pull request description is then added to the engineer list. That is a separate step from the merge. When it is done, sign in at <a href="/portal/">the portal</a> with that same email. The first sign-in sets up an authenticator. After that, the portal asks for a code from it. Use the Engineer view.</p>
-      <p>A pull request that is closed without a merge does not add you to the page or to the engineer list. You can open another one.</p>
+      <p>If the pull request shows those four things, and the page block matches the engineers already there, it can be merged. Merging updates the Studio page. It does not sign you in.</p>
+      <p>Sign-in works only after an invite to the email in the pull request description. Merging the page and sending the invite are two decisions. When the invite arrives, sign in at <a href="/portal/">the portal</a> with that same email. The first sign-in sets up an authenticator. After that, the portal asks for a code from it. Use the Engineer view. The invite asks only for the public photo and the two sentences.</p>
+      <p>A pull request that is closed without a merge does not update the page and does not send an invite. You can open another one.</p>
     </div>
   </section>
 

@@ -174,6 +174,7 @@ function draw(root, data) {
         root.innerHTML =
           '<div class="book-confirm"><h3>Booked.</h3>' +
           '<p>' + esc(when) + '. A confirmation is on its way, with a calendar file.</p>' +
+          '<p>This call is not an account. If the work fits, an invite to the portal arrives at this email after the call. Until then, sign-in will not find you.</p>' +
           (body.meeting && body.meeting.video ? '<p>Link: ' + esc(body.meeting.video) + '</p>' : '') +
           '<p><a href="' + esc(manage) + '">Change or cancel</a></p></div>';
       }).catch(function (error) {

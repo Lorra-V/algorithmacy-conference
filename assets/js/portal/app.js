@@ -409,11 +409,11 @@ function engineerTaskNotice(me) {
   const task = user && user.engineerTask;
   if (!task || viewMode() !== 'engineer') return '';
   return '<section class="notice" id="engineer-task">' +
-    '<p><b>Add your photo and details.</b> Roger Hunt is already on the Studio page. Add yours the same way, in a pull request.</p>' +
+    '<p><b>Add your photo and two sentences.</b> This is the public profile under Your Engineers. It does not sign you in.</p>' +
     '<ol class="engineer-steps">' +
     '<li>Fork <a href="' + esc(task.repo) + '">the repository</a>.</li>' +
     '<li>Add a square photo at <code>' + esc(task.photo) + '</code>.</li>' +
-    '<li>In <code>studio/index.html</code>, find “The engineer.” Copy Roger’s person block and put yours after it. Change the photo path, your name, two sentences about the work you do, and your LinkedIn link. <a href="' + esc(task.page) + '">His block is here.</a></li>' +
+    '<li>In <code>studio/index.html</code>, find “Your Engineers.” Copy either person block and put yours after it. Change the photo path, your name, two sentences a client could read, and your LinkedIn link. <a href="' + esc(task.page) + '">The section is here.</a></li>' +
     '<li>Open a pull request to main. Leave out client names, keys, and documents.</li>' +
     '</ol>' +
     '<div class="portal-actions"><button type="button" class="btn" id="profile-opened">I’ve opened the pull request</button></div>' +
@@ -446,7 +446,7 @@ async function renderLogin() {
   const email = new URLSearchParams(location.search).get('email') || '';
   root.innerHTML =
     '<h1>Sign in to the Studio portal.</h1>' +
-    '<p class="portal-login-lead">An account is created after a call. Use the email the invite went to. After the link, the portal asks for a code from an authenticator app.</p>' +
+    '<p class="portal-login-lead">Use the email the invite went to. After the link, the portal asks for a code from an authenticator app. Clients book a call if they have no invite.</p>' +
     (cfg.configured ? '' : '<p class="desk-status">Sign-in is not open yet. Write to <a href="mailto:topanga@algorithmacy.org">topanga@algorithmacy.org</a>.</p>') +
     '<form class="desk-fields" id="login-form">' +
     '<label class="desk-field desk-field-wide"><span>Email</span><input type="email" name="email" required autocomplete="email" value="' + esc(email) + '"></label>' +
@@ -456,7 +456,7 @@ async function renderLogin() {
     '<p class="portal-or desk-field-wide" id="login-note" role="status"></p>' +
     (cfg.configured ? '<div class="desk-field-wide"><button class="btn-quiet" type="button" id="google">Continue with Google</button></div>' : '') +
     '</form>' +
-    '<p class="portal-or">No account yet? <a href="/book/">Book a 20-minute call</a>.</p>';
+    '<p class="portal-or">Booked a call or sent a note, and no invite yet? That is expected. The account is created after the call. <a href="/book/">Book a 20-minute call</a>.</p>';
   const form = document.getElementById('login-form');
   form.addEventListener('submit', async function (event) {
     event.preventDefault();
@@ -537,18 +537,56 @@ async function session() {
     location.href = '/portal/login/?next=' + encodeURIComponent(location.pathname + location.search);
     return null;
   }
-  return api('me');
+  const me = await api('me');
+  if (me && me.user && user.providerData) {
+    me.user.google = user.providerData.some(function (entry) {
+      return entry && entry.providerId === 'google.com';
+    });
+  }
+  return me;
+}
+
+function openSampleOffice() {
+  storeSet(VIEW_KEY, 'client');
+  storeSet(PREVIEW_KEY, SAMPLE_ID);
+  chromeKey = '';
+  void go('/portal/');
 }
 
 function noAccount(main, me) {
   if (me && isEngineer(me.user)) {
     main.innerHTML =
-      '<p class="portal-empty">This sign-in is the engineer. Choose Client, then Harbor &amp; Finch, to walk through the sample office.</p>';
+      '<p class="portal-empty">Open Harbor &amp; Finch to walk through the sample office.</p>' +
+      '<div class="portal-actions"><button type="button" class="btn" id="open-sample">Open Harbor &amp; Finch</button></div>';
+    const open = document.getElementById('open-sample');
+    if (open) open.addEventListener('click', openSampleOffice);
+    return;
+  }
+  if (me && me.user && me.user.google) {
+    main.innerHTML =
+      '<p class="portal-empty">This Google address has no Studio account yet.</p>' +
+      '<div class="portal-actions"><a class="btn" href="/book/">Book a 20-minute call</a></div>';
     return;
   }
   main.innerHTML =
     '<p class="portal-empty">No account for this address yet. Book a call, and we will invite you after it.</p>' +
     '<div class="portal-actions"><a class="btn" href="/book/">Book a 20-minute call</a></div>';
+}
+
+function billingNotStarted(account) {
+  const status = (account && account.billingStatus) || 'none';
+  return status === 'none' || status === 'incomplete' || status === 'incomplete_expired';
+}
+
+function firstSession(account) {
+  const pay = billingNotStarted(account)
+    ? '<li>Pay on <a href="/portal/billing/">Subscription</a>. $5,000 sets the agents up, and $1,000 is the first month.</li>'
+    : '';
+  return '<ol class="engineer-steps">' +
+    pay +
+    '<li>Invite the people who should see the record, on <a href="/portal/account/">People</a>.</li>' +
+    '<li>Agents and reports appear here after your engineer sets them up.</li>' +
+    '</ol>';
 }
 
 function byNewest(rows, key) {
@@ -637,7 +675,7 @@ async function renderAgentsHome(me) {
     : '';
   main.innerHTML =
     approvalNotice((pending.approvals || []).length) +
-    (cards || empty('No agents yet. They show up here once your engineer sets them up.')) +
+    (cards || firstSession(me.account)) +
     '<h2>Reports</h2>' +
     '<p class="role-note">Your engineer posts a report from Claude or Cursor after a run.</p>' +
     (reports || empty('No reports yet.')) +
@@ -1109,6 +1147,7 @@ async function renderAdmin(me) {
   }).join('');
   main.innerHTML =
     '<p class="notice">Harbor &amp; Finch is a sample office, with agents, approvals, meetings, and a report. <button type="button" id="open-sample">Open it as the client</button></p>' +
+    '<p class="role-note">Open the sample office, then use Leads for people who booked or wrote.</p>' +
     '<h2>Invite an engineer</h2>' +
     '<p class="role-note">They can open every account. The invite tells them to add a photo and a short bio in a pull request, the way Roger is already on the Studio page.</p>' +
     '<form id="invite-engineer" class="desk-fields">' +
@@ -1133,12 +1172,7 @@ async function renderAdmin(me) {
     (leads ? ledger(leads, ['When', 'Source', 'Lead']) : empty('No leads yet. Inquiries from the Studio form and bookings from the calendar appear here.')) +
     '</section>' +
     '<p class="portal-more"><a href="/portal/admin/availability/">Availability</a></p>';
-  document.getElementById('open-sample').addEventListener('click', function () {
-    storeSet(VIEW_KEY, 'client');
-    storeSet(PREVIEW_KEY, SAMPLE_ID);
-    chromeKey = '';
-    void go('/portal/');
-  });
+  document.getElementById('open-sample').addEventListener('click', openSampleOffice);
   main.querySelectorAll('[data-reset-mfa]').forEach(function (button) {
     button.addEventListener('click', function () { void resetAuthenticator(button); });
   });

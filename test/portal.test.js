@@ -156,7 +156,7 @@ test('client preview is read-only and only for the engineer', () => {
   assert.throws(() => previewAccess(engineer, 'POST', 'acct'), { status: 403, message: 'Client preview is read-only.' });
 });
 
-test('an engineer invite names the photo file and Roger’s block', () => {
+test('an engineer invite names the photo file and Your Engineers', () => {
   assert.equal(slug('Lorraine Villaroel', 'lorraine@example.com'), 'lorraine-villaroel');
   assert.equal(slug('', 'andre@example.com'), 'andre');
   const text = engineerInviteText({
@@ -165,9 +165,10 @@ test('an engineer invite names the photo file and Roger’s block', () => {
     link: 'https://algorithmacy.org/portal/login/?email=joseph%40example.com',
   });
   assert.match(text, /images\/speakers\/joseph\.jpg/);
-  assert.match(text, /The engineer/);
+  assert.match(text, /Your Engineers/);
+  assert.doesNotMatch(text, /The engineer/);
+  assert.match(text, /public profile/);
   assert.match(text, /pull request/i);
-  assert.match(text, /Roger Hunt/);
   assert.match(text, /authenticator/);
   assert.doesNotMatch(text, /sk_/);
 });
