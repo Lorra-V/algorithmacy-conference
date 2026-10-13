@@ -1194,7 +1194,9 @@ async function renderAdminAccount(me) {
       a.name,
       statusClass(a.status),
       label(a.status),
-      esc(a.chore) + '<div class="portal-actions"><button type="button" class="btn-quiet" data-status="' + esc(a.id) + '" data-next="' + next + '">' + verb + '</button></div>',
+      esc(a.chore) + '<div class="portal-actions"><button type="button" class="btn-quiet" data-status="' + esc(a.id) + '" data-next="' + next + '">' + verb + '</button>' +
+      (a.keyWaiting ? '<button type="button" class="btn-quiet" data-show-key="' + esc(a.id) + '">Show the key once</button>' : '') +
+      '</div>',
     );
   }).join('');
   const pending = (data.approvals || []).filter(function (a) { return a.status === 'pending'; });
@@ -1246,6 +1248,20 @@ async function renderAdminAccount(me) {
       key.hidden = false;
       key.textContent = 'Copy this key now. It is not shown again. ' + created.agent.apiKey;
     } catch (e) { show(e); }
+  });
+  main.querySelectorAll('[data-show-key]').forEach(function (btn) {
+    btn.addEventListener('click', async function () {
+      try {
+        const shown = await api('admin/agents/key', {
+          method: 'POST',
+          body: { accountId: id, agentId: btn.getAttribute('data-show-key') },
+        });
+        const key = document.getElementById('new-key');
+        key.hidden = false;
+        key.textContent = 'Copy this key now. It is not shown again. ' + shown.apiKey;
+        btn.hidden = true;
+      } catch (e) { show(e); }
+    });
   });
   main.querySelectorAll('[data-status]').forEach(function (btn) {
     btn.addEventListener('click', async function () {

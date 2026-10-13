@@ -14,15 +14,29 @@ test('PKCE S256 accepts the matching verifier and rejects a lookalike', () => {
 });
 
 test('only https and localhost redirects are allowed', () => {
-  assert.equal(safeRedirectUri('https://claude.ai/api/mcp/auth_callback'), true);
-  assert.equal(safeRedirectUri('http://127.0.0.1:33418/callback'), true);
-  assert.equal(safeRedirectUri('http://localhost:8787/cb'), true);
-  assert.equal(safeRedirectUri('http://evil.example/callback'), false);
-  assert.equal(safeRedirectUri('javascript:alert(1)'), false);
-  assert.equal(safeRedirectUri('https://user:pass@claude.ai/cb'), false);
-  assert.equal(safeRedirectUri('https://algorithmacy.org/cb'), false);
-  assert.equal(safeRedirectUri('https://algorithmacy.org.evil.test/cb'), false);
-  assert.equal(safeRedirectUri('https://login-algorithmacy.org/cb'), false);
+  const prev = process.env.STUDIO_OAUTH_REDIRECT_HOSTS;
+  delete process.env.STUDIO_OAUTH_REDIRECT_HOSTS;
+  try {
+    assert.equal(safeRedirectUri('https://claude.ai/api/mcp/auth_callback'), true);
+    assert.equal(safeRedirectUri('https://www.cursor.com/cb'), true);
+    assert.equal(safeRedirectUri('https://evil.example/callback'), false);
+    assert.equal(safeRedirectUri('http://127.0.0.1:33418/callback'), true);
+    assert.equal(safeRedirectUri('http://localhost:8787/cb'), true);
+    assert.equal(safeRedirectUri('http://evil.example/callback'), false);
+    assert.equal(safeRedirectUri('javascript:alert(1)'), false);
+    assert.equal(safeRedirectUri('https://user:pass@claude.ai/cb'), false);
+    assert.equal(safeRedirectUri('https://algorithmacy.org/cb'), false);
+    assert.equal(safeRedirectUri('https://algorithmacy.org.evil.test/cb'), false);
+    assert.equal(safeRedirectUri('https://login-algorithmacy.org/cb'), false);
+    process.env.STUDIO_OAUTH_REDIRECT_HOSTS = '';
+    assert.equal(safeRedirectUri('https://claude.ai/cb'), true);
+    process.env.STUDIO_OAUTH_REDIRECT_HOSTS = 'grok.com';
+    assert.equal(safeRedirectUri('https://grok.com/oauth/callback'), true);
+    assert.equal(safeRedirectUri('https://claude.ai/cb'), false);
+  } finally {
+    if (prev === undefined) delete process.env.STUDIO_OAUTH_REDIRECT_HOSTS;
+    else process.env.STUDIO_OAUTH_REDIRECT_HOSTS = prev;
+  }
 });
 
 test('a refresh must name the same client', () => {
@@ -95,6 +109,14 @@ test('registration rejects a redirect that is not https or localhost', async () 
     method: 'POST',
     headers: {},
     body: { redirect_uris: ['javascript:alert(1)'], token_endpoint_auth_method: 'none' },
+  }, res);
+  assert.equal(status, 400);
+  assert.equal(JSON.parse(body).error, 'invalid_redirect_uri');
+
+  await handler({
+    method: 'POST',
+    headers: {},
+    body: { redirect_uris: ['https://evil.example/cb'], token_endpoint_auth_method: 'none' },
   }, res);
   assert.equal(status, 400);
   assert.equal(JSON.parse(body).error, 'invalid_redirect_uri');

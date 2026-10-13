@@ -47,13 +47,16 @@ module.exports = async (req, res) => {
   }
 
   try {
-    if (await core.rateLimited({ bucket: 'studio:mcp:' + (row.email || row.id || 'unknown') })) {
-      res.statusCode = 429;
-      res.setHeader('Content-Type', 'application/json');
-      return res.end(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32000, message: 'Too many requests. Try again in an hour.' } }));
-    }
+    await core.enforceRate({
+      bucket: 'studio:mcp:' + (row.email || row.id || 'unknown'),
+      message: 'Too many requests. Try again in an hour.',
+    });
   } catch (e) {
-    console.error('studio mcp rate-limit', e);
+    const status = e.status === 429 ? 429 : 503;
+    const message = status === 429 ? e.message : 'The connector is not available right now.';
+    res.statusCode = status;
+    res.setHeader('Content-Type', 'application/json');
+    return res.end(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32000, message } }));
   }
 
   let body;

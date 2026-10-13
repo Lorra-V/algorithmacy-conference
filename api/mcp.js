@@ -99,9 +99,17 @@ request timestamp is the author's priority record.`);
       return text(`Submission not accepted — fix these and retry:\n- ${errors.join('\n- ')}`, true);
     }
     try {
-      if (await core.rateLimited({ email: clean.email, bucket: 'mcp' })) {
-        return text('Rate limit reached for this email. Please try again in an hour.', true);
-      }
+      await core.enforceRate({
+        email: clean.email,
+        bucket: 'mcp',
+        message: 'Rate limit reached for this email. Please try again in an hour.',
+      });
+    } catch (e) {
+      if (e.status === 429) return text(e.message, true);
+      if (e.status === 503) throw e;
+      throw e;
+    }
+    try {
       await core.startSubmission(clean, process.env.SITE_URL);
     } catch (e) {
       return text(`Could not send the confirmation email: ${e.message}`, true);
@@ -157,6 +165,7 @@ async function handleRpc(msg) {
     if (isNotification) return null;
     return { jsonrpc: '2.0', id, error: { code: -32601, message: `Method not found: ${method}` } };
   } catch (e) {
+    if (e.status === 503) throw e;
     console.error('rpc error', method, e);
     if (isNotification) return null;
     return { jsonrpc: '2.0', id, error: { code: -32603, message: 'Internal error' } };
@@ -193,19 +202,41 @@ module.exports = async (req, res) => {
   }
 
   if (Array.isArray(body)) {
-    const out = (await Promise.all(body.map(handleRpc))).filter(Boolean);
+    let out;
+    try {
+      out = (await Promise.all(body.map(handleRpc))).filter(Boolean);
+    } catch (e) {
+      if (e.status === 503) return paused(res);
+      throw e;
+    }
     if (!out.length) { res.statusCode = 202; return res.end(); }
     res.statusCode = 200;
     res.setHeader('Content-Type', 'application/json');
     return res.end(JSON.stringify(out));
   }
 
-  const out = await handleRpc(body);
+  let out;
+  try {
+    out = await handleRpc(body);
+  } catch (e) {
+    if (e.status === 503) return paused(res);
+    throw e;
+  }
   if (!out) { res.statusCode = 202; return res.end(); } // notification → no body
   res.statusCode = 200;
   res.setHeader('Content-Type', 'application/json');
   return res.end(JSON.stringify(out));
 };
+
+function paused(res) {
+  res.statusCode = 503;
+  res.setHeader('Content-Type', 'application/json');
+  return res.end(JSON.stringify({
+    jsonrpc: '2.0',
+    id: null,
+    error: { code: -32000, message: 'Submissions are paused. Try again shortly.' },
+  }));
+}
 
 async function readJson(req) {
   if (req.body && typeof req.body === 'object') return req.body;

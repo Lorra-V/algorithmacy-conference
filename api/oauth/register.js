@@ -25,15 +25,18 @@ module.exports = async (req, res) => {
   const uris = Array.isArray(body.redirect_uris) ? body.redirect_uris.map(String) : [];
   const redirectUris = uris.filter(safeRedirectUri).slice(0, 5);
   if (!redirectUris.length) {
-    return oauthError(res, 400, 'invalid_redirect_uri', 'A redirect must be https, or http on localhost.');
+    return oauthError(res, 400, 'invalid_redirect_uri', 'A redirect must be https on an allowed assistant, or http on localhost.');
   }
 
   try {
-    if (await core.rateLimited({ bucket: 'studio:oauth:register:' + clientIp(req) })) {
-      return oauthError(res, 429, 'slow_down', 'Too many registrations. Try again in an hour.');
-    }
+    await core.enforceRate({
+      bucket: 'studio:oauth:register:' + clientIp(req),
+      message: 'Too many registrations. Try again in an hour.',
+    });
   } catch (e) {
+    if (e.status === 429) return oauthError(res, 429, 'slow_down', e.message);
     console.error('studio oauth register rate-limit', e);
+    return oauthError(res, 503, 'server_error', 'Registration is not available right now.');
   }
 
   try {

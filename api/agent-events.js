@@ -11,14 +11,10 @@ module.exports = async (req, res) => {
     if (!match) throw fail(401, 'A key is required.');
     const agent = await store.agentByKey(match[1]);
     if (!agent) throw fail(401, 'That key is not recognized.');
-    try {
-      if (await core.rateLimited({ bucket: 'studio:agent:' + agent.agentId })) {
-        throw fail(429, 'Too many events. Try again in an hour.');
-      }
-    } catch (e) {
-      if (e.status) throw e;
-      console.error('studio agent rate-limit', e);
-    }
+    await core.enforceRate({
+      bucket: 'studio:agent:' + agent.agentId,
+      message: 'Too many events. Try again in an hour.',
+    });
     const body = await readJson(req);
     const { errors, clean } = validateEvent(body);
     if (errors.length) throw fail(400, errors[0]);

@@ -4,6 +4,27 @@ const assert = require('node:assert/strict');
 const handler = require('../api/studio.js');
 
 const TOKEN = 'test-token-not-a-real-secret';
+process.env.UPSTASH_REDIS_REST_URL = process.env.UPSTASH_REDIS_REST_URL || 'https://example.upstash.io';
+process.env.UPSTASH_REDIS_REST_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || 'test-redis-token';
+
+function installFetch(onMail) {
+  const counts = new Map();
+  const original = global.fetch;
+  global.fetch = async (url, opts) => {
+    const raw = opts && opts.body;
+    if (typeof raw === 'string' && raw.startsWith('[')) {
+      const cmd = JSON.parse(raw);
+      if (cmd[0] === 'INCR') {
+        const n = (counts.get(cmd[1]) || 0) + 1;
+        counts.set(cmd[1], n);
+        return Response.json({ result: n });
+      }
+      return Response.json({ result: 1 });
+    }
+    return onMail(url, opts);
+  };
+  return () => { global.fetch = original; };
+}
 
 function validBody(overrides = {}) {
   return {
@@ -58,11 +79,10 @@ async function post(body, { ip, token = TOKEN } = {}) {
 
 test('sends the Hostinger request shape and treats 204 as success', async () => {
   let captured;
-  const original = global.fetch;
-  global.fetch = async (url, opts) => {
+  const restore = installFetch(async (url, opts) => {
     captured = { url, opts };
     return new Response(null, { status: 204 });
-  };
+  });
   try {
     const res = await post(validBody(), { ip: '203.0.113.21' });
     assert.equal(res.statusCode, 200);
@@ -90,18 +110,20 @@ test('sends the Hostinger request shape and treats 204 as success', async () => 
     assert.equal(JSON.stringify(res.body).includes(TOKEN), false);
     assert.equal(captured.opts.body.includes(TOKEN), false);
   } finally {
-    global.fetch = original;
+    restore();
   }
 });
 
 test('treats 200 and 202 as success', async () => {
-  const original = global.fetch;
   for (const status of [200, 202]) {
-    global.fetch = async () => new Response('{}', { status, headers: { 'content-type': 'application/json' } });
-    const res = await post(validBody({ email: `ok${status}@example.com` }), { ip: `203.0.113.${status}` });
-    assert.equal(res.body.ok, true, `status ${status}`);
+    const restore = installFetch(async () => new Response('{}', { status, headers: { 'content-type': 'application/json' } }));
+    try {
+      const res = await post(validBody({ email: `ok${status}@example.com` }), { ip: `203.0.113.${status}` });
+      assert.equal(res.body.ok, true, `status ${status}`);
+    } finally {
+      restore();
+    }
   }
-  global.fetch = original;
 });
 
 test('does not send when the agreement box is missing', async () => {
@@ -124,14 +146,16 @@ test('rejects an invalid email and an optional blank phone', async () => {
   assert.match(bad.body.error, /email/i);
 
   let captured;
-  const original = global.fetch;
-  global.fetch = async (url, opts) => { captured = JSON.parse(opts.body); return new Response(null, { status: 204 }); };
+  const restore = installFetch(async (url, opts) => {
+    captured = JSON.parse(opts.body);
+    return new Response(null, { status: 204 });
+  });
   try {
     const res = await post(validBody({ phone: '   ', email: 'nophone@example.com' }), { ip: '203.0.113.32' });
     assert.equal(res.body.ok, true);
     assert.match(captured.text, /Phone: \(not provided\)/);
   } finally {
-    global.fetch = original;
+    restore();
   }
 });
 
@@ -155,8 +179,10 @@ test('honeypot and too-fast submissions do not call Hostinger', async () => {
 
 test('missing token returns a friendly error and does not call Hostinger', async () => {
   let called = false;
-  const original = global.fetch;
-  global.fetch = async () => { called = true; return new Response(null, { status: 204 }); };
+  const restore = installFetch(async () => {
+    called = true;
+    return new Response(null, { status: 204 });
+  });
   try {
     const res = await post(validBody({ email: 'missing-token@example.com' }), { ip: '203.0.113.50', token: null });
     assert.equal(res.statusCode, 503);
@@ -164,27 +190,28 @@ test('missing token returns a friendly error and does not call Hostinger', async
     assert.equal(JSON.stringify(res.body).includes('HOSTINGER'), false);
     assert.equal(called, false);
   } finally {
-    global.fetch = original;
+    restore();
   }
 });
 
 test('upstream failure tells the visitor to email the studio', async () => {
-  const original = global.fetch;
-  global.fetch = async () => new Response('nope', { status: 500 });
+  const restore = installFetch(async () => new Response('nope', { status: 500 }));
   try {
     const res = await post(validBody({ email: 'upstream@example.com' }), { ip: '203.0.113.51' });
     assert.equal(res.statusCode, 502);
     assert.match(res.body.error, /topanga@algorithmacy.org/);
     assert.equal(JSON.stringify(res.body).includes(TOKEN), false);
   } finally {
-    global.fetch = original;
+    restore();
   }
 });
 
 test('other work uses that office type in the subject', async () => {
   let captured;
-  const original = global.fetch;
-  global.fetch = async (url, opts) => { captured = JSON.parse(opts.body); return new Response(null, { status: 204 }); };
+  const restore = installFetch(async (url, opts) => {
+    captured = JSON.parse(opts.body);
+    return new Response(null, { status: 204 });
+  });
   try {
     const res = await post(validBody({
       intent: 'other',
@@ -195,13 +222,12 @@ test('other work uses that office type in the subject', async () => {
     assert.equal(res.body.ok, true);
     assert.equal(captured.subject, 'Studio inquiry: North Desk (other work)');
   } finally {
-    global.fetch = original;
+    restore();
   }
 });
 
 test('rate limit blocks a sixth submission from the same address', async () => {
-  const original = global.fetch;
-  global.fetch = async () => new Response(null, { status: 204 });
+  const restore = installFetch(async () => new Response(null, { status: 204 }));
   try {
     const ip = '198.51.100.77';
     let last;
@@ -213,6 +239,6 @@ test('rate limit blocks a sixth submission from the same address', async () => {
     assert.equal(last.statusCode, 429);
     assert.match(last.body.error, /topanga@algorithmacy.org/);
   } finally {
-    global.fetch = original;
+    restore();
   }
 });

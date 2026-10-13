@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { publicTools, callTool, handleRpc } = require('../lib/portal/studio-mcp');
+const { publicTools, callTool, handleRpc, agentKeyMessage } = require('../lib/portal/studio-mcp');
 
 test('a client connection cannot see engineer tools', () => {
   const names = publicTools('client').map((tool) => tool.name);
@@ -95,6 +95,13 @@ test('a key in the URL is not a sign-in', async () => {
   assert.equal(cap.status(), 401);
   assert.match(cap.body(), /Sign in is required/);
   assert.equal(/invalid_token/.test(cap.headers['www-authenticate']), false);
+});
+
+test('create_agent does not put the key in the assistant reply', () => {
+  const message = agentKeyMessage('Intake', 'agent-1');
+  assert.doesNotMatch(message, /sk_/);
+  assert.match(message, /account page/);
+  assert.match(message, /15 minutes/);
 });
 
 test('a connector key is not accepted', async () => {

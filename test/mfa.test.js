@@ -23,6 +23,7 @@ test('a generated secret verifies only its current code', () => {
 });
 
 test('backup codes ignore dashes and the fifth failure locks for 15 minutes', () => {
+  process.env.STUDIO_MFA_KEY = 'test-mfa-key';
   const hash = hashBackup('ab12-cd34');
   assert.equal(hashBackup('AB12 CD34'), hash);
   assert.equal(hashBackup('123456'), '');

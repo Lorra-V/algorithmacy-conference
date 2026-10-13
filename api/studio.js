@@ -28,14 +28,12 @@ const OFFICES = [
 const MIN_FILL_MS = 3000;
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const CLOCK_SKEW_MS = 60 * 1000;
-const RATE_WINDOW_MS = 60 * 60 * 1000;
-const RATE_MAX = 5;
 const MAX_BODY_BYTES = 50_000;
 
 const FRIENDLY_SEND_ERROR =
   'We could not send that from the form just now. Please email topanga@algorithmacy.org and we will reply.';
 
-const hits = new Map();
+const core = require('../lib/submission-core');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -61,10 +59,21 @@ module.exports = async (req, res) => {
   }
 
   const ip = clientIp(req);
-  if (rateLimited(`ip:${ip}`) || rateLimited(`email:${clean.email}`)) {
-    res.statusCode = 429;
+  try {
+    await core.enforceRate({
+      email: clean.email,
+      ip,
+      scope: 'studio',
+      limits: { ip: 5, email: 5 },
+      message: 'Too many attempts. Please email topanga@algorithmacy.org, or try again in an hour.',
+    });
+  } catch (e) {
+    const status = e.status === 429 ? 429 : 503;
+    res.statusCode = status;
     return res.json({
-      error: 'Too many attempts. Please email topanga@algorithmacy.org, or try again in an hour.',
+      error: status === 429
+        ? e.message
+        : 'The form is not available right now. Write to topanga@algorithmacy.org.',
     });
   }
 
@@ -215,22 +224,6 @@ function oneLine(v) {
 function messageText(v) {
   if (typeof v !== 'string') return '';
   return v.replace(/\u0000/g, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
-}
-
-function rateLimited(key) {
-  const now = Date.now();
-  const prev = (hits.get(key) || []).filter((t) => now - t < RATE_WINDOW_MS);
-  if (prev.length >= RATE_MAX) {
-    hits.set(key, prev);
-    return true;
-  }
-  prev.push(now);
-  hits.set(key, prev);
-  if (hits.size > 5000) {
-    const oldest = hits.keys().next().value;
-    hits.delete(oldest);
-  }
-  return false;
 }
 
 function clientIp(req) {

@@ -28,11 +28,14 @@ module.exports = async (req, res) => {
   }
 
   try {
-    if (await core.rateLimited({ bucket: 'studio:oauth:token:' + clientIp(req) })) {
-      return oauthError(res, 429, 'slow_down', 'Too many token requests. Try again in an hour.');
-    }
+    await core.enforceRate({
+      bucket: 'studio:oauth:token:' + clientIp(req),
+      message: 'Too many token requests. Try again in an hour.',
+    });
   } catch (e) {
+    if (e.status === 429) return oauthError(res, 429, 'slow_down', e.message);
     console.error('studio oauth token rate-limit', e);
+    return oauthError(res, 503, 'server_error', 'Sign-in is not available right now.');
   }
 
   try {

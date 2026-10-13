@@ -34,12 +34,17 @@ module.exports = async (req, res) => {
 
   const ip = clientIp(req);
   try {
-    if (await core.rateLimited({ email: clean.email, ip })) {
-      res.statusCode = 429;
-      return res.json({ error: 'Too many attempts. Please try again in an hour.' });
-    }
+    await core.enforceRate({
+      email: clean.email,
+      ip,
+      message: 'Too many attempts. Please try again in an hour.',
+    });
   } catch (e) {
-    console.error('rate-limit store error', e);
+    const status = e.status === 429 ? 429 : 503;
+    res.statusCode = status;
+    return res.json({
+      error: status === 429 ? e.message : 'Submissions are paused. Try again shortly.',
+    });
   }
 
   try {
