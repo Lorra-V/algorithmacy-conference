@@ -1,5 +1,5 @@
 {
-  "count": 9,
+  "count": 6,
   "papers": [
     {
       "slug": "a",
@@ -17,25 +17,6 @@
       ],
       "teaser": "Media and Information Literacy (MIL) programs treat disinformation as individual deficiency correctable through education, but this paper argues they function instead as…",
       "url": "https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference/blob/main/submissions/a.md"
-    },
-    {
-      "slug": "ii",
-      "title": "Humanized AI and Algorithmic Coordination in Healthcare Practice",
-      "authors": "Phillip M. Rowell II, Chief Analytics Officer, Health Catalyst",
-      "type": "Practitioner report",
-      "trackId": "TR.04",
-      "track": "TR.04 — Trust, Opacity & Governance",
-      "keywords": [
-        "algorithmacy",
-        "humanized AI",
-        "algorithmic accountability",
-        "healthcare analytics",
-        "human-in-the-loop",
-        "governance",
-        "platform mediation"
-      ],
-      "teaser": "Algorithmic systems now quietly coordinate clinical and operational decisions across modern health systems, from triage prioritization to staffing, discharge planning, and…",
-      "url": "https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference/blob/main/submissions/ii.md"
     },
     {
       "slug": "khurana",
@@ -75,21 +56,6 @@
       "url": "https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference/blob/main/submissions/london.md"
     },
     {
-      "slug": "mcewen",
-      "title": "AI Without Enterprise Infrastructure: Agentic Systems for Small Biotech Development Teams",
-      "authors": "Amanda McEwen, Harvard Business School, Bentley University, Salubris Biotherapeutics",
-      "type": "Practitioner report",
-      "trackId": "TR.01",
-      "track": "TR.01 — Coordination & Mediation",
-      "keywords": [
-        "Agentic",
-        "biotechnology",
-        "coordination"
-      ],
-      "teaser": "Artificial intelligence has historically occupied a narrow role within biotechnology companies, largely confined to discovery activities such as target identification and molecule…",
-      "url": "https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference/blob/main/submissions/mcewen.md"
-    },
-    {
       "slug": "meleantonio",
       "title": "Asphalt for AI agents: is it any good?",
       "authors": "Antonio Mele (LSE)",
@@ -105,25 +71,6 @@
       ],
       "teaser": "AI agents increasingly promise to act across software environments, but their practical value depends less on model autonomy than on the substrate that lets them move safely.",
       "url": "https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference/blob/main/submissions/meleantonio.md"
-    },
-    {
-      "slug": "phd",
-      "title": "From Sediment to Algorithm: Rethinking Environmental Governance through Algorithmacy in South Africa's Breede River Catchment",
-      "authors": "Mistancia Kanengoni - PhD (University of Cape Town), South Africa",
-      "type": "Full paper",
-      "trackId": "TR.02",
-      "track": "TR.02 — Algorithmic Management",
-      "keywords": [
-        "Algorithmacy",
-        "Environmental Governance",
-        "Environmental Humanities",
-        "Political Ecology",
-        "Science and Technology Studies (STS)",
-        "Algorithmic Mediation",
-        "Social Life of Sediments"
-      ],
-      "teaser": "From Sediment to Algorithm: Rethinking Environmental Governance through Algorithmacy in South Africa's Breede River Catchment",
-      "url": "https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference/blob/main/submissions/phd.md"
     },
     {
       "slug": "wesley83",
