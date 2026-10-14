@@ -27,7 +27,6 @@
     }
   ],
   "rewrites": [
-    { "source": "/api/portal/(.+)", "destination": "/api/portal?path=$1" },
     { "source": "/.well-known/oauth-authorization-server", "destination": "/api/oauth-metadata?doc=as" },
     { "source": "/.well-known/oauth-authorization-server/(.*)", "destination": "/api/oauth-metadata?doc=as" },
     { "source": "/.well-known/oauth-protected-resource", "destination": "/api/oauth-metadata?doc=resource" },
@@ -38,11 +37,6 @@
     { "path": "/api/cron?job=digest", "schedule": "0 12 * * 1" },
     { "path": "/api/cron?job=reports", "schedule": "0 13 1 * *" }
   ],
-  "functions": {
-    "api/portal.js": { "includeFiles": "{studio/index.html,images/speakers/**}" },
-    "api/portal/[...route].js": { "includeFiles": "{studio/index.html,images/speakers/**}" },
-    "api/studio-mcp.js": { "includeFiles": "{studio/index.html,images/speakers/**}" }
-  },
   "headers": [
     {
       "source": "/(.*)",

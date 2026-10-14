@@ -56,11 +56,3 @@ test('the sample office has a full client record', async () => {
   assert.equal(sampleAccount().members[0].name, 'Ada Finch');
   assert.ok(!sampleAccount().members.some((member) => member.email === 'regorhunt02052@gmail.com'));
 });
-
-test('the portal script loads', async () => {
-  globalThis.document = {
-    getElementById() { return null; },
-    addEventListener() {},
-  };
-  await import('../assets/js/portal/app.js');
-});

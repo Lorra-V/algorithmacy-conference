@@ -1,0 +1,291 @@
+'use client';
+
+import { Suspense, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { StudioStyles } from './ui';
+import { MfaPanel } from './MfaPanel';
+import { usePortal } from './session';
+import {
+  destinationPath,
+  isEngineer,
+  normalizePath,
+  pageId,
+  personName,
+  SETTINGS_PAGES,
+} from './format';
+
+const PRIMARY = [
+  ['dashboard', '/portal/', 'Agents'],
+  ['billing', '/portal/billing/', 'Subscription'],
+  ['meetings', '/portal/meetings/', 'Book a call'],
+];
+
+const ENGINEER = [
+  ['admin', '/portal/admin/', 'Accounts'],
+  ['admin-leads', '/portal/admin/leads/', 'Leads'],
+  ['admin-engineers', '/portal/admin/engineers/', 'Engineers'],
+  ['admin-availability', '/portal/admin/availability/', 'Availability'],
+];
+
+function current(id, page) {
+  if (id === 'settings') return !!SETTINGS_PAGES[page];
+  if (id === 'dashboard' || id === 'agents') return page === 'dashboard' || page === 'agents';
+  if (id === 'admin') return page === 'admin' || page === 'admin-account';
+  return id === page;
+}
+
+function Rail({ user, mode, page }) {
+  const ref = useRef(null);
+  const items = isEngineer(user) && mode === 'engineer' ? ENGINEER : PRIMARY;
+  useEffect(() => {
+    const nav = ref.current;
+    if (!nav) return undefined;
+    const link = nav.querySelector('[aria-current="page"]');
+    if (link) {
+      const railBox = nav.getBoundingClientRect();
+      const linkBox = link.getBoundingClientRect();
+      nav.scrollLeft += linkBox.left - railBox.left - (nav.clientWidth - linkBox.width) / 2;
+    }
+    function edges() {
+      nav.classList.toggle('rail-more-left', nav.scrollLeft > 4);
+      nav.classList.toggle('rail-more-right', nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 4);
+    }
+    nav.addEventListener('scroll', edges, { passive: true });
+    edges();
+    return () => nav.removeEventListener('scroll', edges);
+  }, [page, mode, user]);
+  return (
+    <nav className="rail" id="portal-nav" aria-label="Portal" ref={ref}>
+      {items.map((item) => (
+        <Link key={item[0]} href={item[1]} data-page={item[0]} aria-current={current(item[0], page) ? 'page' : undefined}>
+          {item[2]}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+function TopMeta({ user, account, mode, page }) {
+  const { setView, signOut } = usePortal();
+  const who = isEngineer(user) ? personName(user) : ((account && account.office) || personName(user));
+  const showSettings = !isEngineer(user) || mode === 'client';
+  return (
+    <div className="top-meta" id="portal-top-meta">
+      {who ? <span className="portal-who">{who}</span> : null}
+      {isEngineer(user) ? (
+        <span className="view-switch" role="group" aria-label="Which portal">
+          <button type="button" aria-pressed={mode === 'engineer'} onClick={() => setView('engineer')}>Engineer</button>
+          <button type="button" aria-pressed={mode === 'client'} onClick={() => setView('client')}>Client</button>
+        </span>
+      ) : null}
+      {showSettings ? (
+        <Link className="top-settings" href="/portal/settings/" data-page="settings" aria-current={current('settings', page) ? 'page' : undefined}>
+          Settings
+        </Link>
+      ) : null}
+      <button type="button" className="top-signout" id="sign-out" onClick={signOut}>Sign out</button>
+    </div>
+  );
+}
+
+function PreviewBar({ me }) {
+  const { choosePreview, resetOffice, mode } = usePortal();
+  if (!me || !me.user || !isEngineer(me.user) || mode !== 'client') return null;
+  const choices = me.previewChoices || [];
+  if (!choices.length) return null;
+  const currentId = me.account && me.account.id;
+  let note = 'This account is yours. Changes here are live.';
+  if (me.account && me.account.sample) note = 'Sample office. Try every page. Changes stay in this browser.';
+  else if (me.account && me.account.preview) note = 'Read only. This is what that client sees.';
+  return (
+    <div className="preview-bar">
+      <label>
+        Office{' '}
+        <select id="preview-account" value={currentId || ''} onChange={(event) => choosePreview(event.target.value)}>
+          {choices.map((account) => <option key={account.id} value={account.id}>{account.office}</option>)}
+        </select>
+      </label>
+      <p>
+        {note}
+        {me.account && me.account.sample ? <> <button type="button" id="reset-sample" onClick={resetOffice}>Reset sample</button></> : null}
+      </p>
+    </div>
+  );
+}
+
+function EngineerTask({ me }) {
+  const { mode, markProfile } = usePortal();
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const task = me && me.user && me.user.engineerTask;
+  if (!task || mode !== 'engineer') return null;
+  async function opened() {
+    setBusy(true);
+    setError('');
+    try {
+      await markProfile();
+    } catch (e) {
+      setBusy(false);
+      setError(e.message);
+    }
+  }
+  return (
+    <section className="notice" id="engineer-task">
+      <p><b>Add your photo and two sentences.</b> This is the public profile under Your Engineers. It does not sign you in.</p>
+      <ol className="engineer-steps">
+        <li>Fork <a href={task.repo}>the repository</a>.</li>
+        <li>Add a square photo at <code>{task.photo}</code>.</li>
+        <li>In <code>studio/index.html</code>, find “Your Engineers.” Copy either person block and put yours after it. Change the photo path, your name, two sentences a client could read, and your LinkedIn link. <a href={task.page}>The section is here.</a></li>
+        <li>Open a pull request to main. Leave out client names, keys, and documents.</li>
+      </ol>
+      <div className="portal-actions">
+        <button type="button" className="btn" id="profile-opened" disabled={busy} onClick={opened}>I’ve opened the pull request</button>
+      </div>
+      {error ? <p className="desk-status" id="profile-error">{error}</p> : null}
+    </section>
+  );
+}
+
+function BareChrome({ pathname, children }) {
+  const finish = normalizePath(pathname).startsWith('/portal/login/finish');
+  return (
+    <>
+      <StudioStyles />
+      <a className="visually-hidden" href="#portal">Skip to the content</a>
+      <div className="sheet">
+        <header className="top">
+          <a className="top-brand" href="/studio">Algorithmacy Studio</a>
+          <nav className="top-links" aria-label="Algorithmacy">
+            {finish ? <a href="/portal/login/">Sign in</a> : (
+              <>
+                <a href="/studio">The offer</a>
+                <a href="/book/">Book a call</a>
+              </>
+            )}
+          </nav>
+        </header>
+        <main className={finish ? 'portal' : 'portal portal-login'} id="portal">
+          <Suspense fallback={<p className="portal-loading">Loading.</p>}>{children}</Suspense>
+        </main>
+      </div>
+    </>
+  );
+}
+
+function AuthenticatedChrome({ children }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const portal = usePortal();
+  const page = pageId(pathname);
+  const first = useRef(true);
+  const away = portal.me ? destinationPath(pathname, portal.me.user, portal.mode) : '';
+
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (away) router.replace(away);
+  }, [away, router]);
+
+  if (portal.status === 'loading') {
+    return (
+      <Frame page={page} user={null} account={null} mode="client" loading>
+        <p className="portal-loading">Loading.</p>
+      </Frame>
+    );
+  }
+  if (portal.status === 'unconfigured') {
+    return (
+      <Frame page={page} user={null} account={null} mode="client" quiet>
+        <header className="page-head">
+          <h1>Sign-in is not open yet.</h1>
+          <p>Write to <a href="mailto:topanga@algorithmacy.org">topanga@algorithmacy.org</a>.</p>
+        </header>
+      </Frame>
+    );
+  }
+  if (portal.status === 'error') {
+    return (
+      <Frame page={page} user={portal.viewer && portal.viewer.user} account={null} mode={portal.mode}>
+        <header className="page-head"><h1>Something went wrong.</h1></header>
+        <p className="desk-status">{portal.error}</p>
+      </Frame>
+    );
+  }
+  if (portal.status === 'mfa') {
+    return (
+      <BareChrome pathname="/portal/login/">
+        <MfaPanel me={portal.viewer || { mfa: portal.mfa }} onDone={portal.finishMfa} />
+      </BareChrome>
+    );
+  }
+
+  const me = portal.me;
+  if (!me) {
+    return (
+      <Frame page={page} user={portal.viewer && portal.viewer.user} account={null} mode={portal.mode} loading>
+        <p className="portal-loading">Loading.</p>
+      </Frame>
+    );
+  }
+
+  if (away) {
+    return (
+      <Frame page={page} user={me.user} account={me.account} mode={portal.mode} me={me} loading>
+        <p className="portal-loading">Loading.</p>
+      </Frame>
+    );
+  }
+
+  const crumb = SETTINGS_PAGES[page] && page !== 'settings'
+    ? <p className="settings-back"><Link href="/portal/settings/">Settings</Link></p>
+    : null;
+
+  return (
+    <Frame page={page} user={me.user} account={me.account} mode={portal.mode} me={me}>
+      {crumb}
+      <Suspense fallback={<p className="portal-loading">Loading.</p>}>{children}</Suspense>
+    </Frame>
+  );
+}
+
+function Frame({ page, user, account, mode, me, loading, quiet, children }) {
+  return (
+    <>
+      <StudioStyles />
+      <a className="visually-hidden" href="#portal">Skip to the content</a>
+      <div className="sheet">
+        <header className="top" id="portal-top">
+          <Link className="top-brand" href="/portal/">Algorithmacy Studio</Link>
+          {quiet ? <div className="top-meta" id="portal-top-meta" /> : (loading || !user ? <div className="top-meta" id="portal-top-meta"><span className="portal-loading">Loading.</span></div> : (
+            <TopMeta user={user} account={account} mode={mode} page={page} />
+          ))}
+        </header>
+        <div className="portal">
+          <div className="portal-frame">
+            {user && !loading ? <Rail user={user} mode={mode} page={page} /> : <nav className="rail" id="portal-nav" aria-label="Portal" hidden />}
+            <main className="portal-body" id="portal" data-page={page || undefined}>
+              {me ? <PreviewBar me={me} /> : null}
+              {me ? <EngineerTask me={me} /> : null}
+              {children}
+            </main>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+export default function PortalShell({ children }) {
+  const pathname = usePathname();
+  if (normalizePath(pathname).startsWith('/portal/login')) {
+    return <BareChrome pathname={pathname}>{children}</BareChrome>;
+  }
+  return <AuthenticatedChrome>{children}</AuthenticatedChrome>;
+}
