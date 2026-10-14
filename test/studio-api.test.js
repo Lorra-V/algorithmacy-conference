@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const handler = require('../api/studio.js');
+const handler = require('../handlers/studio.js');
 
 const TOKEN = 'test-token-not-a-real-secret';
 process.env.UPSTASH_REDIS_REST_URL = process.env.UPSTASH_REDIS_REST_URL || 'https://example.upstash.io';

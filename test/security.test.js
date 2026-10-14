@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const cron = require('../api/cron');
+const cron = require('../handlers/cron');
 const { identityFromDecoded } = require('../lib/portal/auth');
 const { REFRESH_TTL_MS } = require('../lib/portal/db');
 const core = require('../lib/submission-core');

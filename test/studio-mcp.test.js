@@ -83,7 +83,7 @@ function capture() {
 }
 
 test('the connector starts OAuth when there is no token', async () => {
-  const handler = require('../api/studio-mcp');
+  const handler = require('../handlers/studio-mcp');
   const cap = capture();
   await handler({ method: 'POST', headers: {}, url: '/api/studio-mcp' }, cap.res);
   assert.equal(cap.status(), 401);
@@ -93,7 +93,7 @@ test('the connector starts OAuth when there is no token', async () => {
 });
 
 test('a token that is not a Studio token is invalid_token', async () => {
-  const handler = require('../api/studio-mcp');
+  const handler = require('../handlers/studio-mcp');
   const cap = capture();
   await handler({ method: 'GET', headers: { authorization: 'Bearer nope' }, url: '/api/studio-mcp' }, cap.res);
   assert.equal(cap.status(), 401);
@@ -101,7 +101,7 @@ test('a token that is not a Studio token is invalid_token', async () => {
 });
 
 test('a key in the URL is not a sign-in', async () => {
-  const handler = require('../api/studio-mcp');
+  const handler = require('../handlers/studio-mcp');
   const cap = capture();
   await handler({
     method: 'POST',
@@ -122,7 +122,7 @@ test('create_agent does not put the key in the assistant reply', () => {
 });
 
 test('a connector key is not accepted', async () => {
-  const handler = require('../api/studio-mcp');
+  const handler = require('../handlers/studio-mcp');
   const cap = capture();
   await handler({ method: 'POST', headers: { authorization: 'Bearer ck_secret' }, url: '/api/studio-mcp' }, cap.res);
   assert.equal(cap.status(), 401);
@@ -136,7 +136,7 @@ test('an engineer token is refused until the profile is merged and invited', asy
   store.oauthAccess = async () => ({ role: 'engineer', email: 'ada@example.com', name: 'Ada Missing' });
   store.engineerInviteFor = async () => ({ email: 'ada@example.com', name: 'Ada Missing' });
   try {
-    const handler = require('../api/studio-mcp');
+    const handler = require('../handlers/studio-mcp');
     const cap = capture();
     await handler({ method: 'POST', headers: { authorization: 'Bearer oa_test' }, url: '/api/studio-mcp' }, cap.res);
     assert.equal(cap.status(), 401);
@@ -155,7 +155,7 @@ test('a merged invited engineer keeps the office connection', async () => {
   store.oauthAccess = async () => ({ role: 'engineer', email: 'lorraine@example.com', name: 'Lorraine Villaroel' });
   store.engineerInviteFor = async () => ({ email: 'lorraine@example.com', name: 'Lorraine Villaroel' });
   try {
-    const handler = require('../api/studio-mcp');
+    const handler = require('../handlers/studio-mcp');
     const cap = capture();
     await handler({
       method: 'POST',

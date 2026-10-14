@@ -21,7 +21,7 @@ test('the adapter gives Stripe the unmodified body', async () => {
 });
 
 test('the adapter preserves res.json status codes', async () => {
-  const submit = require('../api/submit');
+  const submit = require('../handlers/submit');
   const response = await callHandler(submit, new Request('http://localhost/api/submit', { method: 'GET' }));
   assert.equal(response.status, 405);
   const data = await response.json();
@@ -29,7 +29,7 @@ test('the adapter preserves res.json status codes', async () => {
 });
 
 test('the adapter rejects a public booking with a bad email', async () => {
-  const book = require('../api/book');
+  const book = require('../handlers/book');
   const response = await callHandler(book, new Request('http://localhost/api/book', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -47,7 +47,7 @@ test('the adapter rejects a public booking with a bad email', async () => {
 });
 
 test('portal config is reachable through the route segments', async () => {
-  const portal = require('../api/portal');
+  const portal = require('../handlers/portal');
   const response = await callHandler(
     portal,
     new Request('http://localhost/api/portal/config'),

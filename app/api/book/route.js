@@ -1,4 +1,4 @@
-import handler from '../../../api/book.js';
+import handler from '../../../handlers/book.js';
 import { callHandler } from '../../../lib/next/call-handler.js';
 
 export const dynamic = 'force-dynamic';

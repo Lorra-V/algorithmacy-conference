@@ -1,4 +1,4 @@
-import handler from '../../../api/stripe-webhook.js';
+import handler from '../../../handlers/stripe-webhook.js';
 import { callHandler } from '../../../lib/next/call-handler.js';
 
 export const dynamic = 'force-dynamic';

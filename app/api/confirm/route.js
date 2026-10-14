@@ -1,4 +1,4 @@
-import handler from '../../../api/confirm.js';
+import handler from '../../../handlers/confirm.js';
 import { callHandler } from '../../../lib/next/call-handler.js';
 
 export const dynamic = 'force-dynamic';

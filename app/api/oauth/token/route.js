@@ -1,4 +1,4 @@
-import handler from '../../../../api/oauth/token.js';
+import handler from '../../../../handlers/oauth/token.js';
 import { callHandler } from '../../../../lib/next/call-handler.js';
 
 export const dynamic = 'force-dynamic';

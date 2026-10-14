@@ -60,7 +60,7 @@ test('discovery documents point at the Studio connector', () => {
 });
 
 test('registration rejects an address that pretends to be Algorithmacy', async () => {
-  const handler = require('../api/oauth/register');
+  const handler = require('../handlers/oauth/register');
   let status = 0;
   let body = '';
   const res = {
@@ -97,7 +97,7 @@ test('the old connector key route is closed', async () => {
   assert.match(JSON.parse(body).error, /no key to copy/i);
 });
 test('registration rejects a redirect that is not https or localhost', async () => {
-  const handler = require('../api/oauth/register');
+  const handler = require('../handlers/oauth/register');
   let status = 0;
   let body = '';
   const res = {
@@ -123,7 +123,7 @@ test('registration rejects a redirect that is not https or localhost', async () 
 });
 
 test('the token endpoint refuses a grant it does not offer', async () => {
-  const handler = require('../api/oauth/token');
+  const handler = require('../handlers/oauth/token');
   let status = 0;
   let body = '';
   const res = {
@@ -137,7 +137,7 @@ test('the token endpoint refuses a grant it does not offer', async () => {
 });
 
 test('the token endpoint refuses a different resource', async () => {
-  const handler = require('../api/oauth/token');
+  const handler = require('../handlers/oauth/token');
   let status = 0;
   let body = '';
   const res = {
@@ -155,7 +155,7 @@ test('the token endpoint refuses a different resource', async () => {
 });
 
 test('protected-resource metadata names the Studio connector', async () => {
-  const handler = require('../api/oauth-metadata');
+  const handler = require('../handlers/oauth-metadata');
   let body = '';
   const res = {
     setHeader() {},

@@ -1,4 +1,4 @@
-import handler from '../../../api/submit.js';
+import handler from '../../../handlers/submit.js';
 import { callHandler } from '../../../lib/next/call-handler.js';
 
 export const dynamic = 'force-dynamic';

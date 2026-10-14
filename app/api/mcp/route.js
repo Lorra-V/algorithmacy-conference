@@ -1,4 +1,4 @@
-import handler from '../../../api/mcp.js';
+import handler from '../../../handlers/mcp.js';
 import { callHandler } from '../../../lib/next/call-handler.js';
 
 export const dynamic = 'force-dynamic';

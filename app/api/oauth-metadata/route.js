@@ -1,4 +1,4 @@
-import handler from '../../../api/oauth-metadata.js';
+import handler from '../../../handlers/oauth-metadata.js';
 import { callHandler } from '../../../lib/next/call-handler.js';
 
 export const dynamic = 'force-dynamic';

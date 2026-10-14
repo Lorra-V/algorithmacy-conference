@@ -1,4 +1,4 @@
-import handler from '../../../api/cron.js';
+import handler from '../../../handlers/cron.js';
 import { callHandler } from '../../../lib/next/call-handler.js';
 
 export const dynamic = 'force-dynamic';

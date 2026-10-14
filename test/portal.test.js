@@ -118,7 +118,7 @@ test('event, account, and availability validation', () => {
 
 test('the public calendar says it is not open without Firebase', async () => {
   if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) return;
-  const book = require('../api/book');
+  const book = require('../handlers/book');
   let body = '';
   const res = {
     statusCode: 0,
@@ -133,7 +133,7 @@ test('the public calendar says it is not open without Firebase', async () => {
 });
 
 test('a public booking with a bad email is rejected before any store call', async () => {
-  const book = require('../api/book');
+  const book = require('../handlers/book');
   let body = '';
   const res = {
     statusCode: 0,

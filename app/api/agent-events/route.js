@@ -1,4 +1,4 @@
-import handler from '../../../api/agent-events.js';
+import handler from '../../../handlers/agent-events.js';
 import { callHandler } from '../../../lib/next/call-handler.js';
 
 export const dynamic = 'force-dynamic';
