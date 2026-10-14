@@ -12,13 +12,14 @@ import {
   normalizePath,
   pageId,
   personName,
-  SETTINGS_PAGES,
 } from './format';
 
 const PRIMARY = [
-  ['dashboard', '/portal/', 'Agents'],
-  ['billing', '/portal/billing/', 'Subscription'],
-  ['meetings', '/portal/meetings/', 'Book a call'],
+  ['dashboard', '/portal/', 'Home'],
+  ['agents', '/portal/agents/', 'Agents'],
+  ['approvals', '/portal/approvals/', 'Approvals'],
+  ['requests', '/portal/requests/', 'Requests'],
+  ['meetings', '/portal/meetings/', 'Calls'],
 ];
 
 const ENGINEER = [
@@ -29,15 +30,31 @@ const ENGINEER = [
 ];
 
 function current(id, page) {
-  if (id === 'settings') return !!SETTINGS_PAGES[page];
-  if (id === 'dashboard' || id === 'agents') return page === 'dashboard' || page === 'agents';
+  if (id === 'dashboard') return page === 'dashboard';
+  if (id === 'agents') return page === 'agents';
   if (id === 'admin') return page === 'admin' || page === 'admin-account';
   return id === page;
 }
 
-function Rail({ user, mode, page }) {
+function Rail({ user, page }) {
   const ref = useRef(null);
-  const items = isEngineer(user) && mode === 'engineer' ? ENGINEER : PRIMARY;
+  const { api, me, revision } = usePortal();
+  const engineerRail = isEngineer(user);
+  const items = engineerRail ? ENGINEER : PRIMARY;
+  const [waiting, setWaiting] = useState(0);
+  useEffect(() => {
+    if (engineerRail || !me || !me.account) {
+      setWaiting(0);
+      return undefined;
+    }
+    let cancel = false;
+    api('approvals').then((data) => {
+      if (!cancel) setWaiting((data.approvals || []).length);
+    }).catch(() => {
+      if (!cancel) setWaiting(0);
+    });
+    return () => { cancel = true; };
+  }, [engineerRail, me, api, revision]);
   useEffect(() => {
     const nav = ref.current;
     if (!nav) return undefined;
@@ -54,22 +71,27 @@ function Rail({ user, mode, page }) {
     nav.addEventListener('scroll', edges, { passive: true });
     edges();
     return () => nav.removeEventListener('scroll', edges);
-  }, [page, mode, user]);
+  }, [page, user]);
   return (
     <nav className="rail" id="portal-nav" aria-label="Portal" ref={ref}>
-      {items.map((item) => (
-        <Link key={item[0]} href={item[1]} data-page={item[0]} aria-current={current(item[0], page) ? 'page' : undefined}>
-          {item[2]}
-        </Link>
-      ))}
+      {items.map((item) => {
+        const name = item[0] === 'approvals' && waiting ? item[2] + ' (' + waiting + ')' : item[2];
+        return (
+          <Link key={item[0]} href={item[1]} data-page={item[0]} aria-current={current(item[0], page) ? 'page' : undefined}>
+            {name}
+          </Link>
+        );
+      })}
     </nav>
   );
 }
 
 function TopMeta({ user, account, mode, page }) {
   const { setView, signOut } = usePortal();
-  const who = isEngineer(user) ? personName(user) : ((account && account.office) || personName(user));
-  const showSettings = !isEngineer(user) || mode === 'client';
+  const who = isEngineer(user) && mode === 'engineer'
+    ? personName(user)
+    : ((account && account.office) || personName(user));
+  const showAccount = !isEngineer(user) || mode === 'client';
   return (
     <div className="top-meta" id="portal-top-meta">
       {who ? <span className="portal-who">{who}</span> : null}
@@ -79,10 +101,13 @@ function TopMeta({ user, account, mode, page }) {
           <button type="button" aria-pressed={mode === 'client'} onClick={() => setView('client')}>Client</button>
         </span>
       ) : null}
-      {showSettings ? (
-        <Link className="top-settings" href="/portal/settings/" data-page="settings" aria-current={current('settings', page) ? 'page' : undefined}>
-          Settings
-        </Link>
+      {showAccount ? (
+        <nav className="top-links" aria-label="Account">
+          <Link className="top-settings" href="/portal/billing/" aria-current={page === 'billing' ? 'page' : undefined}>Subscription</Link>
+          <Link className="top-settings" href="/portal/account/" aria-current={page === 'account' ? 'page' : undefined}>People</Link>
+          <Link className="top-settings" href="/portal/settings/" aria-current={page === 'settings' ? 'page' : undefined}>Assistant</Link>
+          <Link className="top-settings" href="/portal/reports/" aria-current={page === 'reports' ? 'page' : undefined}>Monthly report</Link>
+        </nav>
       ) : null}
       <button type="button" className="top-signout" id="sign-out" onClick={signOut}>Sign out</button>
     </div>
@@ -90,26 +115,32 @@ function TopMeta({ user, account, mode, page }) {
 }
 
 function PreviewBar({ me }) {
-  const { choosePreview, resetOffice, mode } = usePortal();
-  if (!me || !me.user || !isEngineer(me.user) || mode !== 'client') return null;
+  const { choosePreview, resetOffice, mode, setView } = usePortal();
+  if (!me || !me.user || !isEngineer(me.user)) return null;
   const choices = me.previewChoices || [];
   if (!choices.length) return null;
-  const currentId = me.account && me.account.id;
-  let note = 'This account is yours. Changes here are live.';
-  if (me.account && me.account.sample) note = 'Sample office. Try every page. Changes stay in this browser.';
-  else if (me.account && me.account.preview) note = 'Read only. This is what that client sees.';
+  const viewing = mode === 'client';
+  const currentId = viewing && me.account ? me.account.id : '';
+  const office = (me.account && me.account.office) || 'This office';
   return (
     <div className="preview-bar">
       <label>
         Office{' '}
-        <select id="preview-account" value={currentId || ''} onChange={(event) => choosePreview(event.target.value)}>
+        <select id="preview-account" value={currentId} onChange={(event) => choosePreview(event.target.value)}>
+          {viewing ? null : <option value="">Choose an office</option>}
           {choices.map((account) => <option key={account.id} value={account.id}>{account.office}</option>)}
         </select>
       </label>
-      <p>
-        {note}
-        {me.account && me.account.sample ? <> <button type="button" id="reset-sample" onClick={resetOffice}>Reset sample</button></> : null}
-      </p>
+      {viewing ? (
+        <p>
+          {me.account && me.account.sample ? 'Sample office. Changes stay in this browser.' : ('Viewing ' + office + '.')}
+          {' '}
+          <button type="button" onClick={() => setView('engineer')}>Back to your desk</button>
+          {me.account && me.account.sample ? <> <button type="button" id="reset-sample" onClick={resetOffice}>Reset sample</button></> : null}
+        </p>
+      ) : (
+        <p>Choose an office to see what that client sees.</p>
+      )}
     </div>
   );
 }
@@ -243,13 +274,8 @@ function AuthenticatedChrome({ children }) {
     );
   }
 
-  const crumb = SETTINGS_PAGES[page] && page !== 'settings'
-    ? <p className="settings-back"><Link href="/portal/settings/">Settings</Link></p>
-    : null;
-
   return (
     <Frame page={page} user={me.user} account={me.account} mode={portal.mode} me={me}>
-      {crumb}
       <Suspense fallback={<p className="portal-loading">Loading.</p>}>{children}</Suspense>
     </Frame>
   );
@@ -269,7 +295,7 @@ function Frame({ page, user, account, mode, me, loading, quiet, children }) {
         </header>
         <div className="portal">
           <div className="portal-frame">
-            {user && !loading ? <Rail user={user} mode={mode} page={page} /> : <nav className="rail" id="portal-nav" aria-label="Portal" hidden />}
+            {user && !loading ? <Rail user={user} page={page} /> : <nav className="rail" id="portal-nav" aria-label="Portal" hidden />}
             <main className="portal-body" id="portal" data-page={page || undefined}>
               {me ? <PreviewBar me={me} /> : null}
               {me ? <EngineerTask me={me} /> : null}

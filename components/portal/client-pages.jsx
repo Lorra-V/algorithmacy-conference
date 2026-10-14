@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { usePortal } from './session';
 import {
   ConnectionPanel,
@@ -12,9 +12,9 @@ import {
   LedgerRow,
   NoAccount,
   PageHead,
-  Tabs,
 } from './ui';
 import {
+  billingNotStarted,
   byNewest,
   callKind,
   label,
@@ -50,23 +50,105 @@ function useLoad(me, load) {
   return state;
 }
 
+export function PortalHome() {
+  const { me, api } = usePortal();
+  const load = useLoad(me, async () => {
+    const [log, pending, meetings, reports] = await Promise.all([
+      api('activity'),
+      api('approvals'),
+      api('meetings'),
+      api('reports'),
+    ]);
+    return { log, pending, meetings, reports };
+  });
+  const sub = 'What needs you now.';
+  if (!me || load.loading) return <PageHead title="Home" sub={sub}><p className="portal-loading">Loading.</p></PageHead>;
+  if (!me.account) return <PageHead title="Home" sub={sub}><NoAccount me={me} /></PageHead>;
+  if (load.error) return <PageHead title="Home" sub={sub}><p className="desk-status">{load.error}</p></PageHead>;
+
+  const agents = load.data.log.agents || [];
+  const rows = byNewest(load.data.log.activity || [], 'ts');
+  const waiting = (load.data.pending.approvals || []).length;
+  const upcoming = (load.data.meetings.meetings || []).filter(meetingUpcoming)
+    .sort((a, b) => String(a.start).localeCompare(String(b.start)));
+  const next = upcoming[0];
+  const latest = rows[0];
+  const reports = load.data.reports.reports || [];
+  const status = me.account.billingStatus || 'none';
+  const pay = billingNotStarted(me.account) || status === 'past_due' || status === 'unpaid';
+
+  if (!agents.length) {
+    return (
+      <PageHead title="Home" sub={sub}>
+        {waiting ? (
+          <p className="notice">
+            {waiting === 1 ? 'One draft is waiting for your approval.' : waiting + ' drafts are waiting for your approval.'}
+            {' '}<Link href="/portal/approvals/">Review {waiting === 1 ? 'it' : 'them'}</Link>.
+          </p>
+        ) : null}
+        <FirstSession account={me.account} />
+      </PageHead>
+    );
+  }
+
+  return (
+    <PageHead title="Home" sub={sub}>
+      <section className="portal-section">
+        <h2>Approvals</h2>
+        {waiting ? (
+          <p className="notice">
+            {waiting === 1 ? 'One draft is waiting for your approval.' : waiting + ' drafts are waiting for your approval.'}
+            {' '}<Link href="/portal/approvals/">Review {waiting === 1 ? 'it' : 'them'}</Link>.
+          </p>
+        ) : <p className="role-note">Nothing is waiting for your approval.</p>}
+      </section>
+      {pay ? (
+        <section className="portal-section">
+          <h2>Payment</h2>
+          <p className="role-note">
+            {status === 'past_due' || status === 'unpaid'
+              ? 'The card failed. Update it to keep the agents running.'
+              : '$6,000 starts the account: $5,000 to set the agents up and $1,000 for the first month.'}
+          </p>
+          <div className="portal-actions"><Link className="btn" href="/portal/billing/">{status === 'past_due' || status === 'unpaid' ? 'Update payment' : 'Pay $6,000 to start'}</Link></div>
+        </section>
+      ) : null}
+      <section className="portal-section">
+        <h2>Next call</h2>
+        {next ? (
+          <p className="role-note">{callKind(next.type)} on {next.when || whenLabel(next.start)}. <Link href="/portal/meetings/">See the call</Link>.</p>
+        ) : (
+          <p className="role-note">No call booked. <Link href="/portal/meetings/">Book a call</Link>.</p>
+        )}
+      </section>
+      <section className="portal-section">
+        <h2>Latest report</h2>
+        {latest ? (
+          <p className="role-note">
+            {latest.summary}
+            {' '}<Link href={'/portal/agents/?agent=' + encodeURIComponent(latest.agentId || '')}>Open the agent</Link>.
+          </p>
+        ) : <p className="role-note">No reports yet. They appear after your engineer runs an agent.</p>}
+      </section>
+      {reports.length ? (
+        <p className="portal-more"><Link href="/portal/reports/">The monthly report is ready</Link>.</p>
+      ) : null}
+    </PageHead>
+  );
+}
+
 export function AgentsHome() {
   const { me, api } = usePortal();
-  const pathname = usePathname();
   const requested = useSearchParams().get('agent') || '';
-  const load = useLoad(me, async () => {
-    const [log, pending] = await Promise.all([api('activity'), api('approvals')]);
-    return { log, pending };
-  });
-  const sub = 'What is set up for your office, and the reports your engineer posts after each run.';
+  const load = useLoad(me, async () => api('activity'));
+  const sub = 'The agents set up for this office.';
   if (!me || load.loading) return <PageHead title="Agents" sub={sub}><p className="portal-loading">Loading.</p></PageHead>;
   if (!me.account) return <PageHead title="Agents" sub={sub}><NoAccount me={me} /></PageHead>;
   if (load.error) return <PageHead title="Agents" sub={sub}><p className="desk-status">{load.error}</p></PageHead>;
 
-  const agents = load.data.log.agents || [];
-  const rows = byNewest(load.data.log.activity || [], 'ts');
-  const pending = (load.data.pending.approvals || []).length;
-  const back = <p className="settings-back"><Link href={pathname}>Agents</Link></p>;
+  const agents = load.data.agents || [];
+  const rows = byNewest(load.data.activity || [], 'ts');
+  const back = <p className="settings-back"><Link href="/portal/agents/">Agents</Link></p>;
 
   if (requested) {
     const agent = agents.find((item) => item.id === requested);
@@ -75,94 +157,41 @@ export function AgentsHome() {
     const pause = agent.pauseNote || (agent.status === 'paused' ? 'Paused. It does not post until it is running again.' : '');
     return (
       <PageHead title={agent.name} sub={agent.chore} before={back}>
-        <Tabs label={agent.name} tabs={[
-          {
-            id: 'tab-progress',
-            panel: 'panel-progress',
-            label: 'Progress',
-            children: (
-              <>
-                <p className="agent-progress"><span className={'status ' + statusClass(agent.status)}>{label(agent.status)}</span></p>
-                {pause ? <p className="role-note">{pause}</p> : null}
-                {mine.length ? (
-                  <Ledger>
-                    {mine.map((row) => (
-                      <LedgerRow key={row.id || row.ts + row.summary} when={whenLabel(row.ts)} state={statusClass(row.type)} stateName={label(row.type)}>
-                        {row.summary}
-                        {row.detail ? <p className="ledger-detail">{row.detail}</p> : null}
-                        {row.approvedBy ? <p className="ledger-detail">Signed off by {row.approvedBy}.</p> : null}
-                      </LedgerRow>
-                    ))}
-                  </Ledger>
-                ) : <Empty>No reports yet.</Empty>}
-              </>
-            ),
-          },
-          {
-            id: 'tab-flow',
-            panel: 'panel-flow',
-            label: 'Flow',
-            children: (agent.steps || []).length
-              ? <ol className="engineer-steps">{agent.steps.map((step) => <li key={step}>{step}</li>)}</ol>
-              : <Empty>The flow is not written yet.</Empty>,
-          },
-        ]} />
+        <p className="agent-progress"><span className={'status ' + statusClass(agent.status)}>{label(agent.status)}</span></p>
+        {pause ? <p className="role-note">{pause}</p> : null}
+        <h2>Flow</h2>
+        {(agent.steps || []).length
+          ? <ol className="engineer-steps">{agent.steps.map((step) => <li key={step}>{step}</li>)}</ol>
+          : <Empty>The flow is not written yet.</Empty>}
+        <h2>Reports</h2>
+        {mine.length ? (
+          <Ledger>
+            {mine.map((row) => (
+              <LedgerRow key={row.id || row.ts + row.summary} when={whenLabel(row.ts)} state={statusClass(row.type)} stateName={label(row.type)}>
+                {row.summary}
+                {row.detail ? <p className="ledger-detail">{row.detail}</p> : null}
+                {row.approvedBy ? <p className="ledger-detail">Signed off by {row.approvedBy}.</p> : null}
+              </LedgerRow>
+            ))}
+          </Ledger>
+        ) : <Empty>No reports yet.</Empty>}
+        <p className="portal-more"><Link href={'/portal/activity/?agent=' + encodeURIComponent(agent.id)}>Older reports</Link></p>
       </PageHead>
     );
   }
 
-  const notice = pending === 1
-    ? <p className="notice">One draft is waiting for your approval. <Link href="/portal/approvals/">Review it</Link>.</p>
-    : (pending > 1 ? <p className="notice">{pending} drafts are waiting for your approval. <Link href="/portal/approvals/">Review them</Link>.</p> : null);
-
   return (
     <PageHead title="Agents" sub={sub}>
-      {notice}
-      <Tabs label="Agents and reports" tabs={[
-        {
-          id: 'tab-agents',
-          panel: 'panel-agents',
-          label: 'Agents',
-          children: agents.length ? (
-            <div className="card-grid">
-              {agents.map((agent) => (
-                <Link className="record piece agent-card" key={agent.id} href={pathname + '?agent=' + encodeURIComponent(agent.id)}>
-                  <header className="piece-head"><h2>{agent.name}</h2><span className={'status ' + statusClass(agent.status)}>{label(agent.status)}</span></header>
-                  <p className="clamp">{agent.chore}</p>
-                </Link>
-              ))}
-            </div>
-          ) : <FirstSession account={me.account} />,
-        },
-        {
-          id: 'tab-reports',
-          panel: 'panel-reports',
-          label: 'Reports',
-          children: (
-            <>
-              <p className="role-note">Your engineer posts a report from Claude or Cursor after a run.</p>
-              {rows.length ? (
-                <div className="card-grid">
-                  {rows.map((row) => {
-                    const name = (agents.find((agent) => agent.id === row.agentId) || {}).name;
-                    const meta = [whenLabel(row.ts), name || 'Your engineer'].filter(Boolean).join(' · ');
-                    return (
-                      <article className="record piece" key={row.id || row.ts + row.summary}>
-                        <header className="piece-head">
-                          <p className="piece-meta">{meta}</p>
-                          {row.type && row.type !== 'did' ? <span className={'status ' + statusClass(row.type)}>{label(row.type)}</span> : null}
-                        </header>
-                        <p className="clamp">{row.summary}</p>
-                      </article>
-                    );
-                  })}
-                </div>
-              ) : <Empty>No reports yet.</Empty>}
-              {rows.length >= 50 ? <p className="portal-more"><Link href="/portal/activity/">Older reports</Link></p> : null}
-            </>
-          ),
-        },
-      ]} />
+      {agents.length ? (
+        <div className="card-grid">
+          {agents.map((agent) => (
+            <Link className="record piece agent-card" key={agent.id} href={'/portal/agents/?agent=' + encodeURIComponent(agent.id)}>
+              <header className="piece-head"><h2>{agent.name}</h2><span className={'status ' + statusClass(agent.status)}>{label(agent.status)}</span></header>
+              <p className="clamp">{agent.chore}</p>
+            </Link>
+          ))}
+        </div>
+      ) : <FirstSession account={me.account} />}
     </PageHead>
   );
 }
@@ -175,7 +204,7 @@ export function ActivityPage() {
   const [agents, setAgents] = useState([]);
   const [rows, setRows] = useState(null);
   const [error, setError] = useState('');
-  const sub = 'Newest first. What the agents did, and who signed off.';
+  const sub = 'Every report, newest first. Filter by what happened or by agent.';
 
   useEffect(() => {
     if (!me || !me.account) return undefined;
@@ -194,10 +223,11 @@ export function ActivityPage() {
     return () => { cancel = true; };
   }, [me, api, type, agent]);
 
-  if (!me) return <PageHead title="Activity" sub={sub}><p className="portal-loading">Loading.</p></PageHead>;
-  if (!me.account) return <PageHead title="Activity" sub={sub}><NoAccount me={me} /></PageHead>;
+  if (!me) return <PageHead title="Older reports" sub={sub}><p className="portal-loading">Loading.</p></PageHead>;
+  if (!me.account) return <PageHead title="Older reports" sub={sub}><NoAccount me={me} /></PageHead>;
   return (
-    <PageHead title="Activity" sub={sub}>
+    <PageHead title="Older reports" sub={sub}>
+      <p className="settings-back"><Link href="/portal/agents/">Agents</Link></p>
       <div className="portal-filters">
         <label>Type <select id="filter-type" value={type} onChange={(event) => setType(event.target.value)}>
           <option value="">All</option>
@@ -233,7 +263,7 @@ export function ApprovalsPage() {
   const [items, setItems] = useState(null);
   const [error, setError] = useState('');
   const [done, setDone] = useState({});
-  const sub = 'Read the draft, then approve it or decline it. The decision stays on this page.';
+  const sub = 'A person signs off before a new kind of message goes out.';
 
   useEffect(() => {
     if (!me || !me.account) return undefined;
@@ -250,6 +280,7 @@ export function ApprovalsPage() {
     try {
       await api('approvals', { method: 'POST', body: { id: item.id, decision } });
       setDone((current) => ({ ...current, [item.id]: decision }));
+      refresh();
     } catch (err) {
       setDone((current) => ({ ...current, [item.id]: '' }));
       setError(err.message);
@@ -280,13 +311,16 @@ export function ApprovalsPage() {
                 {draft ? <blockquote className="piece-draft">{draft}</blockquote> : null}
                 {state === 'approved' || state === 'declined' ? (
                   <p className="saved">{state === 'approved'
-                    ? 'Approved. It is in the activity log. It will not send until that kind of message is allowed.'
+                    ? 'Approved. This kind of message can go out.'
                     : 'Declined. It will not be sent.'}</p>
                 ) : (
-                  <div className="portal-actions">
-                    <button type="button" className="btn" disabled={state === 'busy'} onClick={() => decide(item, 'approved')}>Approve</button>
-                    <button type="button" className="btn-quiet" disabled={state === 'busy'} onClick={() => decide(item, 'declined')}>Decline</button>
-                  </div>
+                  <>
+                    <p className="role-note">Approve records your sign-off, so this kind of message can go out. Decline stops this draft. It will not be sent.</p>
+                    <div className="portal-actions">
+                      <button type="button" className="btn" disabled={state === 'busy'} onClick={() => decide(item, 'approved')}>Approve</button>
+                      <button type="button" className="btn-quiet" disabled={state === 'busy'} onClick={() => decide(item, 'declined')}>Decline</button>
+                    </div>
+                  </>
                 )}
               </article>
             );
@@ -299,10 +333,11 @@ export function ApprovalsPage() {
 }
 
 export function RequestsPage() {
-  const { me, api, refresh } = usePortal();
+  const { me, api } = usePortal();
   const [rows, setRows] = useState(null);
   const [error, setError] = useState('');
-  const sub = 'The studio reads a request on weekdays and answers within one business day.';
+  const [sent, setSent] = useState('');
+  const sub = 'Ask for a change. The studio answers within one business day.';
 
   useEffect(() => {
     if (!me || !me.account) return undefined;
@@ -316,9 +351,14 @@ export function RequestsPage() {
   async function send(event) {
     event.preventDefault();
     setError('');
+    setSent('');
+    const form = event.target;
     try {
-      await api('requests', { method: 'POST', body: { summary: new FormData(event.target).get('summary') } });
-      refresh();
+      await api('requests', { method: 'POST', body: { summary: new FormData(form).get('summary') } });
+      form.reset();
+      setSent('Sent. The studio answers within one business day.');
+      const data = await api('requests');
+      setRows(byNewest(data.requests, 'createdAt'));
     } catch (err) {
       setError(err.message);
     }
@@ -330,10 +370,11 @@ export function RequestsPage() {
     <PageHead title="Requests" sub={sub}>
       <form className="desk-fields" onSubmit={send}>
         <label className="desk-field desk-field-wide">
-          <span>The change</span>
-          <input name="summary" required maxLength={500} placeholder="Ask Chase to follow Hale on Tuesdays only." />
+          <span>What should change</span>
+          <input name="summary" required maxLength={500} placeholder="Pause the intake agent on Fridays." />
         </label>
         <div className="desk-field-wide portal-actions"><button className="btn" type="submit">Send</button></div>
+        {sent ? <p className="saved desk-field-wide">{sent}</p> : null}
         {error ? <p className="desk-status desk-field-wide">{error}</p> : null}
       </form>
       <h2>Sent</h2>
@@ -365,41 +406,48 @@ function Appointment({ meeting, onCancel }) {
   );
 }
 
+function slotLabel(slot, timeZone) {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+  }).format(new Date(slot.start));
+}
+
 export function MeetingsPage() {
   const { me, api, refresh } = usePortal();
   const [meetings, setMeetings] = useState(null);
   const [slots, setSlots] = useState(null);
+  const [choice, setChoice] = useState(null);
   const [error, setError] = useState('');
-  const sub = 'A time with your AI engineer.';
+
+  const reload = useCallback(async () => {
+    if (!me || !me.account) return;
+    const data = await api('meetings');
+    const list = data.meetings || [];
+    setMeetings(list);
+    const closed = me.account.status === 'cancelled';
+    const upcoming = list.filter(meetingUpcoming);
+    const nextType = closed ? '' : nextCallType(list);
+    if (!nextType || (closed && !upcoming.length)) {
+      setSlots(null);
+      return;
+    }
+    const open = await api('meetings/slots?type=' + nextType);
+    setSlots({ ...open, type: nextType });
+  }, [me, api]);
 
   useEffect(() => {
     if (!me || !me.account) return undefined;
     let cancel = false;
-    api('meetings').then(async (data) => {
-      if (cancel) return;
-      const list = data.meetings || [];
-      setMeetings(list);
-      const closed = me.account.status === 'cancelled';
-      const upcoming = list.filter(meetingUpcoming);
-      const type = closed ? '' : nextCallType(list);
-      if (!type || (closed && !upcoming.length)) {
-        setSlots(null);
-        return;
-      }
-      try {
-        const open = await api('meetings/slots?type=' + type);
-        if (!cancel) setSlots({ ...open, type });
-      } catch (err) {
-        if (!cancel) setError(err.message);
-      }
-    }).catch((err) => { if (!cancel) setError(err.message); });
+    reload().catch((err) => { if (!cancel) setError(err.message); });
     return () => { cancel = true; };
-  }, [me, api]);
+  }, [me, api, reload]);
 
   async function cancel(meeting) {
     setError('');
     try {
       await api('meetings/cancel', { method: 'POST', body: { id: meeting.id } });
+      setChoice(null);
+      await reload();
       refresh();
     } catch (err) {
       setError(err.message);
@@ -411,45 +459,59 @@ export function MeetingsPage() {
     try {
       const held = await api('meetings/hold', { method: 'POST', body: { type, start: slot.start } });
       await api('meetings', { method: 'POST', body: { type, start: slot.start, holdToken: held.holdToken } });
+      setChoice(null);
+      await reload();
       refresh();
     } catch (err) {
       setError(err.message);
     }
   }
 
-  if (!me) return <PageHead title="Book a call" sub={sub}><p className="portal-loading">Loading.</p></PageHead>;
-  if (!me.account) return <PageHead title="Book a call" sub={sub}><NoAccount me={me} /></PageHead>;
-  if (!meetings) return <PageHead title="Book a call" sub={sub}><p className="portal-loading">Loading.</p></PageHead>;
+  if (!me) return <PageHead title="Calls" sub="A time with your engineer."><p className="portal-loading">Loading.</p></PageHead>;
+  if (!me.account) return <PageHead title="Calls" sub="A time with your engineer."><NoAccount me={me} /></PageHead>;
+  if (!meetings) return <PageHead title="Calls" sub="A time with your engineer."><p className="portal-loading">Loading.</p></PageHead>;
 
   const upcoming = meetings.filter(meetingUpcoming).sort((a, b) => String(a.start).localeCompare(String(b.start)));
   const past = byNewest(meetings.filter((meeting) => !meetingUpcoming(meeting)), 'start').slice(0, 3);
   const closed = me.account.status === 'cancelled';
   if (closed && !upcoming.length) {
-    return <PageHead title="Book a call" sub={sub}><Empty>This account is closed, so new calls are not open.</Empty></PageHead>;
+    return <PageHead title="Calls" sub="A time with your engineer."><Empty>This account is closed, so new calls are not open.</Empty></PageHead>;
   }
   const type = slots && slots.type;
-  const intro = type === 'checkpoint'
-    ? 'Pick a time for the check-in. It is the call about a month into the work.'
-    : (type === 'monthly' ? 'Pick a time for the monthly call.' : '');
+  const minutes = (slots && slots.durationMin) || 30;
+  const about = type === 'checkpoint'
+    ? ' It is the call about a month into the work.'
+    : (type === 'monthly' ? ' It is the regular monthly call.' : '');
+  const bookedKind = upcoming[0] ? callKind(upcoming[0].type) : '';
+  const title = type ? callKind(type) : (bookedKind || 'Calls');
+  const sub = type
+    ? minutes + ' minutes with your engineer.' + about
+    : (bookedKind ? bookedKind + ' is booked.' : 'A time with your engineer.');
 
   return (
-    <PageHead title="Book a call" sub={sub}>
+    <PageHead title={title} sub={sub}>
       {upcoming.length ? upcoming.map((meeting) => <Appointment key={meeting.id} meeting={meeting} onCancel={cancel} />) : <p className="portal-empty">No call booked.</p>}
       {type ? (
         <>
           <h2>Pick a time</h2>
-          <p className="role-note">{intro}</p>
+          {choice ? (
+            <div className="notice">
+              <p>Book {slotLabel(choice, slots.timeZone)} for this {minutes}-minute {callKind(type).toLowerCase()}?</p>
+              <div className="portal-actions">
+                <button className="btn" type="button" onClick={() => book(choice, type)}>Confirm</button>
+                <button className="btn-quiet" type="button" onClick={() => setChoice(null)}>Not this time</button>
+              </div>
+            </div>
+          ) : null}
           {slots.closed ? <Empty>{slots.closed}</Empty> : null}
           {!slots.closed && !(slots.slots || []).length ? <Empty>No open times in the next two weeks.</Empty> : null}
           {!slots.closed && (slots.slots || []).length ? (
             <>
-              <p className="role-note">Times are in {zoneName(slots.timeZone)}.</p>
+              <p className="role-note">Times are in {zoneName(slots.timeZone)}. Choosing a time asks you to confirm before it is booked.</p>
               <div className="book-times">
                 {slots.slots.slice(0, 8).map((slot) => (
-                  <button key={slot.start} type="button" className="book-slot" onClick={() => book(slot, type)}>
-                    {new Intl.DateTimeFormat('en-US', {
-                      timeZone: slots.timeZone, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-                    }).format(new Date(slot.start))}
+                  <button key={slot.start} type="button" className="book-slot" onClick={() => setChoice(slot)}>
+                    {slotLabel(slot, slots.timeZone)}
                   </button>
                 ))}
               </div>
@@ -473,7 +535,7 @@ export function BillingPage() {
   const queryStatus = useSearchParams().get('status');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
-  const sub = 'Pay, change the card, or open an invoice.';
+  const sub = 'The charge that keeps the agents running.';
 
   async function go(path, id) {
     setError('');
@@ -506,7 +568,7 @@ export function BillingPage() {
     ? 'The monthly charge keeps the agents running. It includes weekday replies, the monthly call, and the written report.'
     : (problem
       ? 'Update the card to keep the agents running.'
-      : '$5,000 sets the agents up. $1,000 is the first month. Every month after that is $1,000.');
+      : '$6,000 starts the account: $5,000 to set the agents up and $1,000 for the first month. Every month after that is $1,000.');
   return (
     <PageHead title="Subscription" sub={sub}>
       {queryStatus === 'success' ? <p className="notice">Payment received. The account updates when Stripe confirms it.</p> : null}
@@ -522,10 +584,7 @@ export function BillingPage() {
         ) : (problem ? (
           <button className="btn" type="button" disabled={busy === 'portal'} onClick={() => go('billing/portal', 'portal')}>Update payment</button>
         ) : (
-          <>
-            <button className="btn" type="button" disabled={busy === 'pay'} onClick={() => go('billing/checkout', 'pay')}>Pay $6,000</button>
-            <button className="btn-quiet" type="button" disabled={busy === 'portal'} onClick={() => go('billing/portal', 'portal')}>Invoices and card</button>
-          </>
+          <button className="btn" type="button" disabled={busy === 'pay'} onClick={() => go('billing/checkout', 'pay')}>Pay $6,000 to start</button>
         ))}
       </div>
       <h2>Invoices</h2>
@@ -628,24 +687,12 @@ export function AccountPage() {
 
 export function SettingsPage() {
   const { me } = usePortal();
-  const sub = 'The rest of the account.';
-  const items = [
-    ['/portal/activity/', 'Activity', 'The full list of reports, with filters.'],
-    ['/portal/approvals/', 'Approvals', 'Drafts waiting for you to approve or decline.'],
-    ['/portal/requests/', 'Requests', 'Ask for a change. The studio answers on weekdays.'],
-    ['/portal/reports/', 'Monthly report', 'The written summary of the month.'],
-    ['/portal/account/', 'People', 'Who can open this account, and who gets the weekly note.'],
-  ];
-  if (!me) return <PageHead title="Settings" sub={sub}><p className="portal-loading">Loading.</p></PageHead>;
-  if (!me.account) return <PageHead title="Settings" sub={sub}><NoAccount me={me} /></PageHead>;
+  const sub = 'Allow an assistant for this office. It can see what you can see here. It cannot pay, and it cannot open another office.';
+  if (!me) return <PageHead title="Connect an assistant" sub={sub}><p className="portal-loading">Loading.</p></PageHead>;
+  if (!me.account) return <PageHead title="Connect an assistant" sub={sub}><NoAccount me={me} /></PageHead>;
   return (
-    <PageHead title="Settings" sub={sub}>
-      <ConnectionPanel lead="Claude, Cursor, Grok, Muse, or OpenClaw. Allow it for this office. It can see this office and do what you can do here. It cannot pay, and it cannot open another office." />
-      <nav className="settings-list" aria-label="Settings">
-        {items.map((item) => (
-          <Link key={item[0]} href={item[0]}><span>{item[1]}</span><small>{item[2]}</small></Link>
-        ))}
-      </nav>
+    <PageHead title="Connect an assistant" sub={sub}>
+      <ConnectionPanel lead="Claude, Cursor, Grok, Muse, or OpenClaw. When it asks you to sign in, allow it for this office." />
     </PageHead>
   );
 }

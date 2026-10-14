@@ -1,7 +1,7 @@
 'use client';
 
-import { AgentsHome } from '../../components/portal/client-pages';
+import { PortalHome } from '../../components/portal/client-pages';
 
 export default function Page() {
-  return <AgentsHome />;
+  return <PortalHome />;
 }

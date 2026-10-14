@@ -31,9 +31,7 @@ function viewModeOf(viewer) {
   return viewer.account ? 'client' : 'engineer';
 }
 
-async function present(viewer, mode) {
-  setPreviewAccount('');
-  if (!viewer || !isEngineer(viewer.user) || mode !== 'client') return viewer;
+async function officeChoices() {
   const choices = [{ id: SAMPLE_ID, office: 'Harbor & Finch (sample)' }];
   try {
     const data = await api('admin/accounts');
@@ -41,6 +39,14 @@ async function present(viewer, mode) {
       choices.push({ id: account.id, office: account.office || 'Account' });
     });
   } catch (e) { /* the sample office still opens */ }
+  return choices;
+}
+
+async function present(viewer, mode) {
+  setPreviewAccount('');
+  if (!viewer || !isEngineer(viewer.user)) return viewer;
+  const choices = await officeChoices();
+  if (mode !== 'client') return { ...viewer, previewChoices: choices };
   const ownId = viewer.account && viewer.account.id;
   let id = storeGet(PREVIEW_KEY);
   const known = choices.some((account) => account.id === id);
@@ -74,6 +80,7 @@ export function PortalSession({ children }) {
   const [presented, setPresented] = useState(null);
   const [mode, setMode] = useState('client');
   const [tick, setTick] = useState(0);
+  const [revision, setRevision] = useState(0);
   const [mfa, setMfa] = useState('');
   const [error, setError] = useState('');
 
@@ -155,6 +162,7 @@ export function PortalSession({ children }) {
 
   const refresh = useCallback(() => {
     setTick((value) => value + 1);
+    setRevision((value) => value + 1);
   }, []);
 
   const setView = useCallback((next) => {
@@ -177,9 +185,13 @@ export function PortalSession({ children }) {
   }, [router]);
 
   const choosePreview = useCallback((id) => {
+    if (!id) return;
+    storeSet(VIEW_KEY, 'client');
     storeSet(PREVIEW_KEY, id);
+    setMode('client');
     setTick((value) => value + 1);
-  }, []);
+    router.push('/portal/');
+  }, [router]);
 
   const openClientPreview = useCallback((id, href) => {
     storeSet(VIEW_KEY, 'client');
@@ -228,6 +240,7 @@ export function PortalSession({ children }) {
     error,
     api: call,
     refresh,
+    revision,
     setView,
     openSample,
     choosePreview,
@@ -236,7 +249,7 @@ export function PortalSession({ children }) {
     finishMfa,
     markProfile,
     signOut: signOutUser,
-  }), [status, presented, viewer, mode, mfa, error, call, refresh, setView, openSample, choosePreview, openClientPreview, resetOffice, finishMfa, markProfile]);
+  }), [status, presented, viewer, mode, mfa, error, call, refresh, revision, setView, openSample, choosePreview, openClientPreview, resetOffice, finishMfa, markProfile]);
 
   return <PortalContext.Provider value={value}>{children}</PortalContext.Provider>;
 }

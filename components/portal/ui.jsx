@@ -133,7 +133,7 @@ export function FirstSession({ account }) {
   return (
     <ol className="engineer-steps">
       {billingNotStarted(account) ? (
-        <li>Pay on <Link href="/portal/billing/">Subscription</Link>. $5,000 sets the agents up, and $1,000 is the first month.</li>
+        <li>Pay on <Link href="/portal/billing/">Subscription</Link>. $6,000 starts the account: $5,000 to set the agents up and $1,000 for the first month.</li>
       ) : null}
       <li>Invite the people who should see the record, on <Link href="/portal/account/">People</Link>.</li>
       <li>Agents and reports appear here after your engineer sets them up.</li>

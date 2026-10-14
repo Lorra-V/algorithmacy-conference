@@ -25,18 +25,45 @@ function useConfirmReset() {
   };
 }
 
+function needsLine(detail) {
+  if (!detail || !detail.account) return '';
+  const open = (detail.requests || []).filter((item) => item.status === 'open').length;
+  const waiting = (detail.approvals || []).filter((item) => item.status === 'pending').length;
+  const bill = detail.account.billingStatus || 'none';
+  const reasons = [];
+  if (open) reasons.push(open === 1 ? '1 open request' : open + ' open requests');
+  if (waiting) reasons.push(waiting === 1 ? '1 approval waiting' : waiting + ' approvals waiting');
+  if (bill === 'none' || bill === 'incomplete' || bill === 'incomplete_expired') reasons.push('payment has not started');
+  if (bill === 'past_due' || bill === 'unpaid') reasons.push('payment failed');
+  return reasons.join('. ');
+}
+
 export function AdminHome() {
-  const { me, api, openSample } = usePortal();
+  const { me, api } = usePortal();
   const router = useRouter();
   const [accounts, setAccounts] = useState(null);
+  const [reasons, setReasons] = useState({});
   const [error, setError] = useState('');
-  const sub = 'Create an account after a call.';
+  const sub = 'Offices that need you, then the rest.';
 
   useEffect(() => {
     if (!me) return undefined;
     let cancel = false;
-    api('admin/accounts').then((data) => {
-      if (!cancel) setAccounts(data.accounts || []);
+    api('admin/accounts').then(async (data) => {
+      const list = data.accounts || [];
+      if (cancel) return;
+      setAccounts(list);
+      const details = await Promise.all(list.map((account) => (
+        api('admin/accounts/' + encodeURIComponent(account.id)).catch(() => null)
+      )));
+      if (cancel) return;
+      const next = {};
+      details.forEach((detail) => {
+        if (!detail || !detail.account) return;
+        const line = needsLine(detail);
+        if (line) next[detail.account.id] = line;
+      });
+      setReasons(next);
     }).catch((err) => { if (!cancel) setError(err.message); });
     return () => { cancel = true; };
   }, [me, api]);
@@ -59,8 +86,18 @@ export function AdminHome() {
   if (!me || accounts == null && !error) return <PageHead title="Accounts" sub={sub}><p className="portal-loading">Loading.</p></PageHead>;
   return (
     <PageHead title="Accounts" sub={sub}>
-      <p className="notice">Harbor &amp; Finch is a sample office, with agents, approvals, meetings, and a report. <button type="button" id="open-sample" onClick={openSample}>Open it as the client</button></p>
-      <p className="role-note">Open the sample office, then use Leads for people who booked or wrote.</p>
+      <section className="portal-section">
+        <h2>Accounts</h2>
+        {accounts && accounts.length ? (
+          <Ledger>
+            {accounts.slice().sort((a, b) => (reasons[a.id] ? 0 : 1) - (reasons[b.id] ? 0 : 1)).map((account) => (
+              <LedgerRow key={account.id} when={<Link href={'/portal/admin/account/?id=' + encodeURIComponent(account.id)}>{account.office}</Link>} state={reasons[account.id] ? 'waiting' : statusClass(account.billingStatus)} stateName={reasons[account.id] ? 'Needs you' : label(account.billingStatus || 'none')}>
+                {reasons[account.id] ? reasons[account.id] + '.' : (account.kind + '. ' + label(account.status) + '.')}
+              </LedgerRow>
+            ))}
+          </Ledger>
+        ) : <Empty>No accounts yet. The first one is created with the form below, after a call.</Empty>}
+      </section>
       <h2>New account</h2>
       <form className="desk-fields" onSubmit={create}>
         <label className="desk-field"><span>Business</span><input name="office" required /></label>
@@ -79,18 +116,6 @@ export function AdminHome() {
         <div className="desk-field-wide portal-actions"><button className="btn" type="submit">Create and invite</button></div>
         {error ? <p className="desk-status desk-field-wide">{error}</p> : null}
       </form>
-      <section className="portal-section">
-        <h2>Accounts</h2>
-        {accounts && accounts.length ? (
-          <Ledger>
-            {accounts.map((account) => (
-              <LedgerRow key={account.id} when={<Link href={'/portal/admin/account/?id=' + encodeURIComponent(account.id)}>{account.office}</Link>} state={statusClass(account.billingStatus)} stateName={label(account.billingStatus || 'none')}>
-                {account.kind}. {label(account.status)}.
-              </LedgerRow>
-            ))}
-          </Ledger>
-        ) : <Empty>No accounts yet. The first one is created with the form above, after a call.</Empty>}
-      </section>
     </PageHead>
   );
 }
@@ -98,13 +123,20 @@ export function AdminHome() {
 export function AdminLeads() {
   const { me, api } = usePortal();
   const [leads, setLeads] = useState(null);
+  const [known, setKnown] = useState([]);
   const [error, setError] = useState('');
-  const sub = 'People who booked a call or wrote from the Studio form.';
+  const sub = 'People who booked a call or wrote from the Studio form. A row says when they are not an account yet.';
   useEffect(() => {
     if (!me) return undefined;
     let cancel = false;
     api('admin/accounts').then((data) => {
-      if (!cancel) setLeads(data.leads || []);
+      if (cancel) return;
+      setLeads(data.leads || []);
+      const emails = [];
+      (data.accounts || []).forEach((account) => {
+        (account.memberEmails || []).forEach((email) => emails.push(String(email).toLowerCase()));
+      });
+      setKnown(emails);
     }).catch((err) => { if (!cancel) setError(err.message); });
     return () => { cancel = true; };
   }, [me, api]);
@@ -121,8 +153,9 @@ export function AdminLeads() {
             const bits = [];
             if (lead.email && lead.email !== labelName) bits.push(lead.email);
             if (detail) bits.push(detail);
+            const hasAccount = lead.email && known.includes(String(lead.email).toLowerCase());
             return (
-              <LedgerRow key={(lead.email || labelName) + (lead.start || lead.createdAt)} when={whenLabel(lead.start || lead.createdAt)} state="" stateName={source}>
+              <LedgerRow key={(lead.email || labelName) + (lead.start || lead.createdAt)} when={whenLabel(lead.start || lead.createdAt)} state={hasAccount ? '' : 'waiting'} stateName={hasAccount ? source : 'Not an account yet'}>
                 <b>{labelName}</b>
                 {bits.length ? <p className="ledger-detail">{bits.join('. ')}.</p> : null}
               </LedgerRow>
@@ -360,29 +393,36 @@ export function AdminAccount() {
     }
   }
 
+  const requests = (data.requests || []).slice().sort((a, b) => (a.status === 'open' ? 0 : 1) - (b.status === 'open' ? 0 : 1));
+
   return (
     <PageHead title={acc.office} sub={sub}>
-      <form className="desk-fields" onSubmit={saveReply}>
-        <label className="desk-field desk-field-wide">
-          <span>Reply time shown on the account</span>
-          <input name="replyTime" defaultValue={acc.replyTime || ''} placeholder="Weekdays, within one business day" />
-        </label>
-        <div className="desk-field-wide portal-actions">
-          <button className="btn" type="submit">Save</button>
-          {saved ? <p className="saved">Saved.</p> : null}
-        </div>
-      </form>
-      {people.length ? (
-        <section className="portal-section">
-          <h2>Authenticator</h2>
-          <p className="role-note">If someone loses the authenticator and the backup codes, clear it. They set up a new one the next time they sign in.</p>
-          {people.map((member) => (
-            <div className="portal-actions" key={member.email}>
-              <button type="button" className="btn-quiet" onClick={() => reset(member.email).catch((err) => setError(err.message))}>Reset authenticator for {member.email}</button>
-            </div>
-          ))}
-        </section>
-      ) : null}
+      <section className="portal-section">
+        <h2>Requests</h2>
+        {requests.length ? (
+          <Ledger>
+            {requests.map((item) => (
+              <LedgerRow key={item.id} when={whenLabel(item.createdAt)} state={statusClass(item.status)} stateName={label(item.status)}>
+                {item.summary}
+                {item.status === 'open' ? <div className="portal-actions"><button className="btn-quiet" type="button" onClick={() => done(item.id)}>Mark done</button></div> : null}
+              </LedgerRow>
+            ))}
+          </Ledger>
+        ) : <Empty>No requests.</Empty>}
+      </section>
+      <section className="portal-section">
+        <h2>Approvals</h2>
+        {pending.length ? (
+          <Ledger>
+            {pending.map((item) => (
+              <LedgerRow key={item.id} when={whenLabel(item.createdAt)} state="waiting" stateName="Waiting">
+                {item.summary}
+                <div className="portal-actions"><button className="btn" type="button" onClick={() => approve(item.id)}>Approve</button></div>
+              </LedgerRow>
+            ))}
+          </Ledger>
+        ) : <Empty>Nothing is waiting.</Empty>}
+      </section>
       <section className="portal-section">
         <h2>Agents</h2>
         {(data.agents || []).length ? (
@@ -420,34 +460,32 @@ export function AdminAccount() {
           <label className="desk-field desk-field-wide"><span>What happened</span><input name="summary" required /></label>
           <div className="desk-field-wide portal-actions"><button className="btn" type="submit">Post to the activity log</button></div>
         </form>
+        <div className="portal-actions"><button className="btn" type="button" onClick={report}>Write this month’s report</button></div>
       </section>
-      <section className="portal-section">
-        <h2>Approvals</h2>
-        {pending.length ? (
-          <Ledger>
-            {pending.map((item) => (
-              <LedgerRow key={item.id} when={whenLabel(item.createdAt)} state="waiting" stateName="Waiting">
-                {item.summary}
-                <div className="portal-actions"><button className="btn" type="button" onClick={() => approve(item.id)}>Approve</button></div>
-              </LedgerRow>
+      <details className="portal-section rarely">
+        <summary>Rarely</summary>
+        <form className="desk-fields" onSubmit={saveReply}>
+          <label className="desk-field desk-field-wide">
+            <span>Reply time shown on the account</span>
+            <input name="replyTime" defaultValue={acc.replyTime || ''} placeholder="Weekdays, within one business day" />
+          </label>
+          <div className="desk-field-wide portal-actions">
+            <button className="btn" type="submit">Save</button>
+            {saved ? <p className="saved">Saved.</p> : null}
+          </div>
+        </form>
+        {people.length ? (
+          <section className="portal-section">
+            <h2>Authenticator</h2>
+            <p className="role-note">If someone loses the authenticator and the backup codes, clear it. They set up a new one the next time they sign in.</p>
+            {people.map((member) => (
+              <div className="portal-actions" key={member.email}>
+                <button type="button" className="btn-quiet" onClick={() => reset(member.email).catch((err) => setError(err.message))}>Reset authenticator for {member.email}</button>
+              </div>
             ))}
-          </Ledger>
-        ) : <Empty>Nothing is waiting.</Empty>}
-      </section>
-      <section className="portal-section">
-        <h2>Requests</h2>
-        {(data.requests || []).length ? (
-          <Ledger>
-            {data.requests.map((item) => (
-              <LedgerRow key={item.id} when={whenLabel(item.createdAt)} state={statusClass(item.status)} stateName={label(item.status)}>
-                {item.summary}
-                {item.status === 'open' ? <div className="portal-actions"><button className="btn-quiet" type="button" onClick={() => done(item.id)}>Mark done</button></div> : null}
-              </LedgerRow>
-            ))}
-          </Ledger>
-        ) : <Empty>No requests.</Empty>}
-      </section>
-      <div className="portal-actions"><button className="btn-quiet" type="button" onClick={report}>Write this month’s report</button></div>
+          </section>
+        ) : null}
+      </details>
       {error ? <p className="desk-status">{error}</p> : null}
     </PageHead>
   );
@@ -457,7 +495,7 @@ export function AdminAvailability() {
   const { me, api } = usePortal();
   const [availability, setAvailability] = useState(null);
   const [error, setError] = useState('');
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState('');
   const sub = 'Leave a day blank to keep it closed. Hours look like 10:00.';
 
   useEffect(() => {
@@ -472,7 +510,7 @@ export function AdminAvailability() {
   async function save(event) {
     event.preventDefault();
     setError('');
-    setSaved(false);
+    setSaved('');
     const fd = new FormData(event.target);
     const windows = [];
     for (let i = 0; i < 7; i++) {
@@ -496,7 +534,10 @@ export function AdminAvailability() {
           exceptions,
         },
       });
-      setSaved(true);
+      const names = windows.map((window) => DAYS[window.dow]).filter(Boolean);
+      setSaved(names.length
+        ? 'Clients can book ' + names.join(', ') + '.'
+        : 'No days are open, so clients cannot book.');
     } catch (err) {
       setError(err.message);
     }
@@ -533,7 +574,7 @@ export function AdminAvailability() {
         </label>
         <div className="desk-field-wide portal-actions">
           <button className="btn" type="submit">Save</button>
-          {saved ? <p className="saved">Saved.</p> : null}
+          {saved ? <p className="saved">{saved}</p> : null}
         </div>
         {error ? <p className="desk-status desk-field-wide">{error}</p> : null}
       </form>

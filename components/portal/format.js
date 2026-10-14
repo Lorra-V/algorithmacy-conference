@@ -153,15 +153,6 @@ const ROUTES = [
   ['/portal/', 'dashboard'],
 ];
 
-export const SETTINGS_PAGES = {
-  settings: true,
-  activity: true,
-  approvals: true,
-  requests: true,
-  reports: true,
-  account: true,
-};
-
 export function pageId(pathname) {
   const path = normalizePath(pathname);
   for (let i = 0; i < ROUTES.length; i++) {
@@ -174,8 +165,8 @@ export function destinationPath(pathname, user, mode) {
   const path = normalizePath(pathname);
   if (!path.startsWith('/portal/') || path.startsWith('/portal/login')) return '';
   const office = path.startsWith('/portal/admin/');
-  const engineer = isEngineer(user) && mode === 'engineer';
-  if (isEngineer(user) && engineer && !office) return '/portal/admin/';
+  const engineer = isEngineer(user);
+  if (engineer && mode === 'engineer' && !office) return '/portal/admin/';
   if (!engineer && office) return '/portal/';
   return '';
 }

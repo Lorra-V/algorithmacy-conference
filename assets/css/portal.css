@@ -397,6 +397,18 @@ a.agent-card:focus-visible{
   color: var(--ink-2);
 }
 .preview-bar p{ margin: 0; }
+.rarely summary{
+  font-family: var(--sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.top-meta .top-links{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+}
 .preview-bar label{
   display: flex;
   align-items: center;
