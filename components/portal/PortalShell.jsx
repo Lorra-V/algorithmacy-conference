@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { StudioStyles } from './ui';
 import { MfaPanel } from './MfaPanel';
 import { usePortal } from './session';
@@ -115,13 +115,14 @@ function PreviewBar({ me }) {
   if (!choices.length) return null;
   const viewing = mode === 'client';
   const currentId = viewing && me.account ? me.account.id : '';
+  const selected = choices.some((account) => account.id === currentId) ? currentId : '';
   const office = (me.account && me.account.office) || 'This office';
   return (
     <div className="preview-bar">
       <label>
         Office{' '}
-        <select id="preview-account" value={currentId} onChange={(event) => choosePreview(event.target.value)}>
-          {viewing ? null : <option value="">Choose an office</option>}
+        <select id="preview-account" value={selected} onChange={(event) => { if (event.target.value) choosePreview(event.target.value); }}>
+          <option value="">Choose an office</option>
           {choices.map((account) => <option key={account.id} value={account.id}>{account.office}</option>)}
         </select>
       </label>
@@ -133,7 +134,7 @@ function PreviewBar({ me }) {
           {me.account && me.account.sample ? <> <button type="button" id="reset-sample" onClick={resetOffice}>Reset sample</button></> : null}
         </p>
       ) : (
-        <p>Choose an office to open that client’s portal.</p>
+        <p>Open Harbor & Finch to practice what a client sees. Open a real office to look at that client’s portal.</p>
       )}
     </div>
   );
@@ -200,10 +201,10 @@ function BareChrome({ pathname, children }) {
 
 function AuthenticatedChrome({ children }) {
   const pathname = usePathname();
-  const router = useRouter();
   const portal = usePortal();
   const page = pageId(pathname);
   const first = useRef(true);
+  const sent = useRef('');
   const away = portal.me ? destinationPath(pathname, portal.me.user, portal.mode) : '';
 
   useEffect(() => {
@@ -215,8 +216,10 @@ function AuthenticatedChrome({ children }) {
   }, [pathname]);
 
   useEffect(() => {
-    if (away) router.replace(away);
-  }, [away, router]);
+    if (!away || sent.current === away) return;
+    sent.current = away;
+    window.location.replace(away);
+  }, [away]);
 
   if (portal.status === 'loading') {
     return (
@@ -282,7 +285,7 @@ function Frame({ page, user, account, mode, me, loading, quiet, children }) {
       <a className="visually-hidden" href="#portal">Skip to the content</a>
       <div className="sheet">
         <header className="top" id="portal-top">
-          <Link className="top-brand" href="/portal/">Algorithmacy Studio</Link>
+          <Link className="top-brand" href={isEngineer(user) && mode === 'engineer' ? '/portal/admin/' : '/portal/'}>Algorithmacy Studio</Link>
           {quiet ? <div className="top-meta" id="portal-top-meta" /> : (loading || !user ? <div className="top-meta" id="portal-top-meta"><span className="portal-loading">Loading.</span></div> : (
             <TopMeta user={user} account={account} mode={mode} page={page} />
           ))}
@@ -291,8 +294,8 @@ function Frame({ page, user, account, mode, me, loading, quiet, children }) {
           <div className="portal-frame">
             {user && !loading ? <Rail user={user} page={page} mode={mode} /> : <nav className="rail" id="portal-nav" aria-label="Portal" hidden />}
             <main className="portal-body" id="portal" data-page={page || undefined}>
-              {me ? <PreviewBar me={me} /> : null}
-              {me ? <EngineerTask me={me} /> : null}
+              {me && !loading ? <PreviewBar me={me} /> : null}
+              {me && !loading ? <EngineerTask me={me} /> : null}
               {children}
             </main>
           </div>
