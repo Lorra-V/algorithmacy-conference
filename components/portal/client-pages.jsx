@@ -28,6 +28,10 @@ import {
   zoneName,
 } from './format';
 
+function isPreview(me) {
+  return !!(me && me.account && me.account.preview);
+}
+
 function useLoad(me, load) {
   const loadRef = useRef(load);
   loadRef.current = load;
@@ -75,7 +79,8 @@ export function PortalHome() {
   const latest = rows[0];
   const reports = load.data.reports.reports || [];
   const status = me.account.billingStatus || 'none';
-  const pay = billingNotStarted(me.account) || status === 'past_due' || status === 'unpaid';
+  const preview = isPreview(me);
+  const pay = !preview && (billingNotStarted(me.account) || status === 'past_due' || status === 'unpaid');
 
   if (!agents.length) {
     return (
@@ -289,8 +294,10 @@ export function ApprovalsPage() {
 
   if (!me) return <PageHead title="Approvals" sub={sub}><p className="portal-loading">Loading.</p></PageHead>;
   if (!me.account) return <PageHead title="Approvals" sub={sub}><NoAccount me={me} /></PageHead>;
+  const preview = isPreview(me);
   return (
     <PageHead title="Approvals" sub={sub}>
+      {preview ? <p className="notice">This is a preview. The client approves or declines on their own sign-in.</p> : null}
       {items == null ? <p className="portal-loading">Loading.</p> : (items.length ? (
         <div id="approvals">
           {items.map((item) => {
@@ -313,7 +320,7 @@ export function ApprovalsPage() {
                   <p className="saved">{state === 'approved'
                     ? 'Approved. This kind of message can go out.'
                     : 'Declined. It will not be sent.'}</p>
-                ) : (
+                ) : preview ? null : (
                   <>
                     <p className="role-note">Approve records your sign-off, so this kind of message can go out. Decline stops this draft. It will not be sent.</p>
                     <div className="portal-actions">
@@ -366,8 +373,10 @@ export function RequestsPage() {
 
   if (!me) return <PageHead title="Requests" sub={sub}><p className="portal-loading">Loading.</p></PageHead>;
   if (!me.account) return <PageHead title="Requests" sub={sub}><NoAccount me={me} /></PageHead>;
+  const preview = isPreview(me);
   return (
     <PageHead title="Requests" sub={sub}>
+      {preview ? <p className="notice">This is a preview. The client sends requests on their own sign-in.</p> : (
       <form className="desk-fields" onSubmit={send}>
         <label className="desk-field desk-field-wide">
           <span>What should change</span>
@@ -377,6 +386,7 @@ export function RequestsPage() {
         {sent ? <p className="saved desk-field-wide">{sent}</p> : null}
         {error ? <p className="desk-status desk-field-wide">{error}</p> : null}
       </form>
+      )}
       <h2>Sent</h2>
       {rows == null ? <p className="portal-loading">Loading.</p> : (rows.length ? (
         <Ledger>
@@ -483,6 +493,7 @@ export function MeetingsPage() {
     ? ' It is the call about a month into the work.'
     : (type === 'monthly' ? ' It is the regular monthly call.' : '');
   const bookedKind = upcoming[0] ? callKind(upcoming[0].type) : '';
+  const preview = isPreview(me);
   const title = type ? callKind(type) : (bookedKind || 'Calls');
   const sub = type
     ? minutes + ' minutes with your engineer.' + about
@@ -490,8 +501,9 @@ export function MeetingsPage() {
 
   return (
     <PageHead title={title} sub={sub}>
-      {upcoming.length ? upcoming.map((meeting) => <Appointment key={meeting.id} meeting={meeting} onCancel={cancel} />) : <p className="portal-empty">No call booked.</p>}
-      {type ? (
+      {preview ? <p className="notice">This is a preview. The client books and cancels on their own sign-in.</p> : null}
+      {upcoming.length ? upcoming.map((meeting) => <Appointment key={meeting.id} meeting={meeting} onCancel={preview ? null : cancel} />) : <p className="portal-empty">No call booked.</p>}
+      {!preview && type ? (
         <>
           <h2>Pick a time</h2>
           {choice ? (
@@ -518,7 +530,7 @@ export function MeetingsPage() {
             </>
           ) : null}
         </>
-      ) : (upcoming.length ? <p className="role-note">Another time opens after this call.</p> : null)}
+      ) : (!preview && upcoming.length ? <p className="role-note">Another time opens after this call.</p> : null)}
       {error ? <p className="desk-status">{error}</p> : null}
       {past.length ? (
         <>
@@ -564,6 +576,7 @@ export function BillingPage() {
   const active = status === 'active' || status === 'trialing';
   const problem = status === 'past_due' || status === 'unpaid';
   const invoices = me.account.invoices || [];
+  const preview = isPreview(me);
   const note = active
     ? 'The monthly charge keeps the agents running. It includes weekday replies, the monthly call, and the written report.'
     : (problem
@@ -578,6 +591,7 @@ export function BillingPage() {
         <div><dt>Price</dt><dd>{planPrice(status)}</dd></div>
       </dl>
       <p className="bill-note">{note}</p>
+      {preview ? <p className="notice">This is a preview. The client pays on their own sign-in.</p> : (
       <div className="portal-actions">
         {active ? (
           <button className="btn" type="button" disabled={busy === 'portal'} onClick={() => go('billing/portal', 'portal')}>Manage subscription</button>
@@ -587,6 +601,7 @@ export function BillingPage() {
           <button className="btn" type="button" disabled={busy === 'pay'} onClick={() => go('billing/checkout', 'pay')}>Pay $6,000 to start</button>
         ))}
       </div>
+      )}
       <h2>Invoices</h2>
       {invoices.length ? (
         <Ledger>
@@ -612,6 +627,7 @@ export function AccountPage() {
   if (!me) return <PageHead title="People" sub={peopleLine}><p className="portal-loading">Loading.</p></PageHead>;
   if (!me.account) return <PageHead title="People" sub={peopleLine}><NoAccount me={me} /></PageHead>;
   const owner = me.account.role === 'owner';
+  const preview = isPreview(me);
   const meMember = (me.account.members || []).find((member) => member.email === me.user.email);
   const receivers = (me.account.members || []).filter((member) => member.digest !== false).map((member) => member.name || member.email);
 
@@ -645,6 +661,7 @@ export function AccountPage() {
 
   return (
     <PageHead title="People" sub={peopleLine}>
+      {preview ? <p className="notice">This is a preview. The client invites people on their own sign-in.</p> : null}
       <p className="role-note">An owner runs the account. A member can read it and send requests. The weekly note and the monthly report go to {receivers.length ? receivers.join(', ') : 'no one yet'}.</p>
       {(me.account.members || []).length ? (
         <Ledger>
@@ -656,19 +673,19 @@ export function AccountPage() {
                 {' '}
                 {member.digest === false ? 'Does not get the weekly note.' : 'Gets the weekly note and the monthly report.'}
               </p>
-              {owner && member.role !== 'owner' ? (
+              {owner && !preview && member.role !== 'owner' ? (
                 <div className="portal-actions"><button type="button" className="btn-quiet" onClick={() => remove(member.email)}>Remove</button></div>
               ) : null}
             </LedgerRow>
           ))}
         </Ledger>
       ) : <Empty>No one is on this account yet.</Empty>}
-      {meMember ? (
+      {meMember && !preview ? (
         <label className="portal-check">
           <input type="checkbox" defaultChecked={meMember.digest !== false} onChange={digest} /> Email me the weekly note and the monthly report
         </label>
       ) : null}
-      {owner ? (
+      {!preview && owner ? (
         <>
           <h2>Invite someone at the firm</h2>
           <p className="role-note">They get a link to this portal. They do not get billing access unless they are an owner.</p>
@@ -690,6 +707,9 @@ export function SettingsPage() {
   const sub = 'Allow an assistant for this office. It can see what you can see here. It cannot pay, and it cannot open another office.';
   if (!me) return <PageHead title="Connect an assistant" sub={sub}><p className="portal-loading">Loading.</p></PageHead>;
   if (!me.account) return <PageHead title="Connect an assistant" sub={sub}><NoAccount me={me} /></PageHead>;
+  if (isPreview(me)) {
+    return <PageHead title="Connect an assistant" sub={sub}><p className="notice">This is a preview. The client connects an assistant on their own sign-in.</p></PageHead>;
+  }
   return (
     <PageHead title="Connect an assistant" sub={sub}>
       <ConnectionPanel lead="Claude, Cursor, Grok, Muse, or OpenClaw. When it asks you to sign in, allow it for this office." />

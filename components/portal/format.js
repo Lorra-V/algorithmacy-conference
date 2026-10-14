@@ -167,6 +167,7 @@ export function destinationPath(pathname, user, mode) {
   const office = path.startsWith('/portal/admin/');
   const engineer = isEngineer(user);
   if (engineer && mode === 'engineer' && !office) return '/portal/admin/';
+  if (engineer && mode === 'client' && office) return '/portal/';
   if (!engineer && office) return '/portal/';
   return '';
 }

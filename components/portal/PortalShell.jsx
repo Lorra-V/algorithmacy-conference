@@ -36,10 +36,10 @@ function current(id, page) {
   return id === page;
 }
 
-function Rail({ user, page }) {
+function Rail({ user, page, mode }) {
   const ref = useRef(null);
   const { api, me, revision } = usePortal();
-  const engineerRail = isEngineer(user);
+  const engineerRail = isEngineer(user) && mode !== 'client';
   const items = engineerRail ? ENGINEER : PRIMARY;
   const [waiting, setWaiting] = useState(0);
   useEffect(() => {
@@ -87,7 +87,7 @@ function Rail({ user, page }) {
 }
 
 function TopMeta({ user, account, mode, page }) {
-  const { setView, signOut } = usePortal();
+  const { signOut } = usePortal();
   const who = isEngineer(user) && mode === 'engineer'
     ? personName(user)
     : ((account && account.office) || personName(user));
@@ -95,12 +95,6 @@ function TopMeta({ user, account, mode, page }) {
   return (
     <div className="top-meta" id="portal-top-meta">
       {who ? <span className="portal-who">{who}</span> : null}
-      {isEngineer(user) ? (
-        <span className="view-switch" role="group" aria-label="Which portal">
-          <button type="button" aria-pressed={mode === 'engineer'} onClick={() => setView('engineer')}>Engineer</button>
-          <button type="button" aria-pressed={mode === 'client'} onClick={() => setView('client')}>Client</button>
-        </span>
-      ) : null}
       {showAccount ? (
         <nav className="top-links" aria-label="Account">
           <Link className="top-settings" href="/portal/billing/" aria-current={page === 'billing' ? 'page' : undefined}>Subscription</Link>
@@ -139,7 +133,7 @@ function PreviewBar({ me }) {
           {me.account && me.account.sample ? <> <button type="button" id="reset-sample" onClick={resetOffice}>Reset sample</button></> : null}
         </p>
       ) : (
-        <p>Choose an office to see what that client sees.</p>
+        <p>Choose an office to open that client’s portal.</p>
       )}
     </div>
   );
@@ -295,7 +289,7 @@ function Frame({ page, user, account, mode, me, loading, quiet, children }) {
         </header>
         <div className="portal">
           <div className="portal-frame">
-            {user && !loading ? <Rail user={user} page={page} /> : <nav className="rail" id="portal-nav" aria-label="Portal" hidden />}
+            {user && !loading ? <Rail user={user} page={page} mode={mode} /> : <nav className="rail" id="portal-nav" aria-label="Portal" hidden />}
             <main className="portal-body" id="portal" data-page={page || undefined}>
               {me ? <PreviewBar me={me} /> : null}
               {me ? <EngineerTask me={me} /> : null}
