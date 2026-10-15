@@ -22,40 +22,12 @@ const speakerData = {
     photo: '/images/speakers/antonio-scala.jpg',
     linkedin: 'https://www.linkedin.com/in/antonio-scala-1b298b19'
   },
-  'samuel-fosso-wamba': {
-    name: 'Samuel Fosso Wamba',
-    title: 'Professor and Associate Dean for Research, TBS Education',
-    bio: 'Samuel Wamba is Professor and Associate Dean for Research at TBS Education, specialising in AI, digital transformation and sovereignty. He is an award-winning researcher in AI governance and organisational change.',
-    photo: '/images/speakers/samuel-fosso-wamba.jpg',
-    linkedin: 'https://www.linkedin.com/in/samuelfossowamba'
-  },
-  'amanda-mcewen': {
-    name: 'Amanda McEwen',
-    title: 'SVP of Clinical Development, Salubris Biotherapeutics',
-    bio: 'Amanda McEwen is SVP of Clinical Development at Salubris Biotherapeutics and an Executive Fellow at Harvard Business School, bringing more than 16 years of biotechnology leadership in therapy, regulatory strategy and life-science education.',
-    photo: '/images/speakers/amanda-mcewen.jpg',
-    linkedin: 'https://www.linkedin.com/in/amandamariegentilemcewen'
-  },
   'chevonnese-chevers-whyte': {
     name: 'Chevonnese Chevers Whyte',
     title: 'Animation educator and industry professional',
     bio: 'Chevonnese Chevers Whyte is an animation educator, entrepreneur and industry professional at UWI Mona. As President of the Jamaica Animation Nation Network, she champions practical, industry-driven education.',
     photo: '/images/speakers/chevonnese-chevers-whyte.jpg',
     linkedin: 'https://www.linkedin.com/in/chevonnese-chevers-whyte/'
-  },
-  'uohna-thiessen': {
-    name: 'Dr. Uohna Thiessen',
-    title: 'AI/ML strategist, educator and data scientist',
-    bio: 'Dr Uohna Thiessen brings deep expertise in AI literacy and responsible adoption. At the inaugural Algorithmacy Conference, she will explore AI education, workforce readiness and making AI accessible for future generations.',
-    photo: '/images/speakers/uohna-thiessen.jpg',
-    linkedin: 'https://www.linkedin.com/in/druohna-datascientist/'
-  },
-  'mistancia-kanengoni': {
-    name: 'Mistancia Kanengoni',
-    title: 'Environmental anthropologist and researcher',
-    bio: 'Mistancia Kanengoni is an environmental anthropologist and UCT PhD graduate whose interdisciplinary research explores environmental governance, sustainability, ecological relationships, processes and justice across Africa.',
-    photo: '/images/speakers/mistancia-kanengoni.png',
-    linkedin: 'https://www.linkedin.com/in/mystecia-kanengoni-4a710086/'
   },
   'ryan-roper': {
     name: 'Ryan R. Roper',
