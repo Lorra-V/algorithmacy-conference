@@ -207,6 +207,21 @@ export function AdminEngineers() {
     }
   }
 
+  async function revoke(row) {
+    const who = row.name || row.email || row.github;
+    if (!window.confirm('Remove portal access for ' + who + '? They can no longer sign in as an engineer.')) return;
+    setError('');
+    try {
+      await api('admin/engineers/revoke', {
+        method: 'POST',
+        body: { email: row.email || '', github: row.github || '' },
+      });
+      refresh();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   async function invite(event) {
     event.preventDefault();
     setError('');
@@ -262,11 +277,14 @@ export function AdminEngineers() {
       {engineers.length ? (
         <Ledger heads={['Name', 'Status', 'Email']}>
           {engineers.map((row) => {
-            const state = row.status !== 'claimed' ? 'Invited' : (row.profile === 'opened' ? 'Pull request opened' : 'Joined');
+            const state = row.status === 'revoked'
+              ? 'Revoked'
+              : (row.status !== 'claimed' ? 'Invited' : (row.profile === 'opened' ? 'Pull request opened' : 'Joined'));
             return (
               <LedgerRow key={row.email || row.github || row.name} when={row.name || row.email} state="" stateName={state}>
                 {row.email || 'GitHub sign-in'}{row.github ? ' · ' + row.github : ''}
-                {row.email ? <> <button type="button" className="btn-quiet" onClick={() => reset(row.email).catch((err) => setError(err.message))}>Reset authenticator</button></> : null}
+                {row.email && row.status !== 'revoked' ? <> <button type="button" className="btn-quiet" onClick={() => reset(row.email).catch((err) => setError(err.message))}>Reset authenticator</button></> : null}
+                {owner && row.status !== 'revoked' ? <> <button type="button" className="btn-quiet" onClick={() => revoke(row)}>Remove access</button></> : null}
               </LedgerRow>
             );
           })}

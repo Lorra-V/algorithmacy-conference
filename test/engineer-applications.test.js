@@ -43,4 +43,46 @@ test('a sign-in email line is kept and a noreply address is not', () => {
   assert.equal(row.email, 'joseph@example.com');
   assert.equal(row.merged, true);
   assert.equal(applicationFromPull({ number: 1, user: { login: 'cursoragent' }, body: '' }, patch), null);
+  const human = applicationFromPull({
+    number: 58,
+    user: { login: 'cursoragent' },
+    body: '',
+  }, patch, [
+    { author: { login: 'cursoragent' }, committer: { login: 'cursoragent' } },
+    { author: { login: 'Lorra-V' }, committer: { login: 'cursoragent' } },
+  ]);
+  assert.equal(human.login, 'Lorra-V');
+  assert.equal(human.name, 'Joseph Singh');
+});
+
+test('a cursoragent pull request is listed under the human commit author', async () => {
+  const previous = process.env.GITHUB_TOKEN;
+  process.env.GITHUB_TOKEN = 'test-token';
+  const { listEngineerApplications } = require('../lib/portal/engineer-applications');
+  const calls = [];
+  const fetcher = async (url) => {
+    calls.push(url);
+    const body = url.includes('/pulls?')
+      ? [{
+        number: 70,
+        title: 'Add an engineer',
+        body: 'engineer',
+        html_url: 'https://github.com/example/pull/70',
+        merged_at: '2026-10-01T00:00:00.000Z',
+        user: { login: 'cursoragent' },
+      }]
+      : (url.includes('/commits')
+        ? [{ author: { login: 'cursoragent' } }, { author: { login: 'Lorra-V' } }]
+        : [{ filename: 'studio/index.html', patch }]);
+    return { ok: true, json: async () => body };
+  };
+  try {
+    const rows = await listEngineerApplications(fetcher);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].login, 'Lorra-V');
+    assert.equal(calls.some((url) => url.includes('/commits')), true);
+  } finally {
+    if (previous === undefined) delete process.env.GITHUB_TOKEN;
+    else process.env.GITHUB_TOKEN = previous;
+  }
 });
