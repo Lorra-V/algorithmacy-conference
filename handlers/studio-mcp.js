@@ -8,7 +8,7 @@ const store = require('../lib/portal/db');
 const { siteUrl } = require('../lib/portal/http');
 const { wwwAuthenticate } = require('../lib/portal/oauth');
 const { adminEmails } = require('../lib/portal/auth');
-const { publishedEngineer } = require('../lib/portal/published-engineers');
+const { engineerForEmail } = require('../lib/portal/engineer-access');
 const { handleRpc } = require('../lib/portal/studio-mcp');
 
 module.exports = async (req, res) => {
@@ -126,12 +126,12 @@ async function actorFrom(token) {
     return { row: null, error: 'invalid_token', message: 'That sign-in is not valid. Connect again from the assistant.' };
   }
   if (row.role === 'engineer' && !adminEmails().includes(String(row.email || '').toLowerCase())) {
-    const invite = await store.engineerInviteFor(row.email);
-    if (!invite || !publishedEngineer(invite.name || row.name)) {
+    const resolved = await engineerForEmail(row.email);
+    if (!resolved.engineer) {
       return {
         row: null,
         error: 'insufficient_scope',
-        message: 'This address is not an engineer yet. The photo and profile have to be merged under Your Engineers, and the Studio owner has to send an invite.',
+        message: 'This address is not an engineer yet. The photo and profile have to be merged under Your Engineers, and the sign-in email or GitHub login has to be recorded.',
       };
     }
   }

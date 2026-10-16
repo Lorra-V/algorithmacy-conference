@@ -78,10 +78,14 @@
         </li>
         <li>
           <span class="when">4</span>
-          <p><b>Put the rest in the pull request description,</b> not in the page. The chore, who signs off, and the sample report stay off the public page. The GitHub account that opens the pull request is the sign-in.</p>
+          <p><b>Record the sign-in.</b> In <code>lib/portal/studio-engineers.json</code>, add your name, your GitHub login, and your sign-in email. The public page does not show the email. Leave the email blank only if you will sign in with GitHub. A <code>noreply</code> address does not count.</p>
         </li>
         <li>
           <span class="when">5</span>
+          <p><b>Put the rest in the pull request description,</b> not in the page. The chore, who signs off, and the sample report stay off the public page. On its own line you may also write <code>Sign-in email: you@example.com</code>.</p>
+        </li>
+        <li>
+          <span class="when">6</span>
           <p><b>Open the pull request to <code>main</code>.</b> Title it “Add your name to the Studio engineers.”</p>
         </li>
       </ol>
@@ -98,7 +102,7 @@
       <ol class="call">
         <li>
           <span class="when">Email</span>
-          <p><b>The GitHub account that opens the pull request is the sign-in.</b> To receive the invite by email as well, add one line: <code>Sign-in email: you@example.com</code>. A GitHub <code>noreply</code> address is not enough for that line. The address is not printed on the Studio page. Anyone who can see the pull request can see it. Sign-in also asks for a code from an authenticator app.</p>
+          <p><b>The sign-in email lives in <code>lib/portal/studio-engineers.json</code>.</b> That is the address the magic link goes to. The GitHub login in the same row can sign in when the email is still blank. A GitHub <code>noreply</code> address is not a sign-in email. Anyone who can see the pull request can see the address. Sign-in also asks for a code from an authenticator app.</p>
         </li>
         <li>
           <span class="when">Chore</span>
@@ -123,7 +127,7 @@
     </div>
     <div class="part-body">
       <p>If the pull request shows those four things, and the page block matches the engineers already there, it can be merged. Merging puts the photo and profile on the Studio page.</p>
-      <p>Sign-in works after that merge, when an invite is sent. Both have to happen, in that order. The Studio owner sends the invite. The GitHub account that opened the pull request is the account that signs in. A line in the pull request, <code>Sign-in email: you@example.com</code>, lets the invite arrive by email as well. When it arrives, sign in at <a href="/portal/">the portal</a>. The first sign-in sets up an authenticator. After that, the portal asks for a code from it. Use the Engineer view.</p>
+      <p>Sign-in works after that merge, when the row in <code>lib/portal/studio-engineers.json</code> is on main. The email in that row receives the magic link. The GitHub login in that row can sign in when the email is blank. The Studio owner can also send an invite from the portal. Sign in at <a href="/portal/">the portal</a>. The first sign-in sets up an authenticator. After that, the portal asks for a code from it. Use the Engineer view.</p>
       <p>A pull request that is closed without a merge does not update the page and does not send an invite. You can open another one.</p>
     </div>
   </section>

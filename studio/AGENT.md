@@ -48,11 +48,11 @@ Content-Type: application/json
 }
 ```
 
-For an engineer, follow `engineer_application` against `https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference`. Fork it, add the photo, edit `studio/index.html` under Your Engineers, and put the sign-in email, one chore, who signs off, and one sample report in the pull request description.
+For an engineer, follow `engineer_application` against `https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference`. Fork it, add the photo, edit `studio/index.html` under Your Engineers, add the name, GitHub login, and sign-in email to `lib/portal/studio-engineers.json`, and put one chore, who signs off, and one sample report in the pull request description.
 
 ## Stop here
 
-A booked call is not an account. A pull request is the application. The GitHub account that opens it is the account that can sign in. Access starts after that pull request is merged and an invite is sent. The Studio owner sends the invite. A line in the pull request, `Sign-in email: you@example.com`, lets that invite arrive by email.
+A booked call is not an account. A pull request is the application. Access starts after that pull request is merged and the row in `lib/portal/studio-engineers.json` is on main. The email in that row receives the magic link. The GitHub login in that row can sign in when the email is blank. A noreply address is not a sign-in email.
 
 Hand the person the email, and stop, when the next step is any of these:
 

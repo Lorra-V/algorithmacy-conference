@@ -1,0 +1,29 @@
+{
+  "engineers": [
+    {
+      "name": "Roger Hunt",
+      "github": "rogerSuperBuilderAlpha",
+      "email": "roger@algorithmacy.org",
+      "pr": 0
+    },
+    {
+      "name": "Joseph Singh",
+      "github": "joes9987",
+      "email": "singhjoe57@gmail.com",
+      "pr": 59
+    },
+    {
+      "name": "Lorraine Villaroel",
+      "github": "Lorra-V",
+      "email": "",
+      "pr": 58,
+      "note": "TODO: sign-in email is unknown. PR #58 only recorded cursoragent@cursor.com and Lorra-V@users.noreply.github.com. She signs in with GitHub (Lorra-V) until a real email is added here."
+    },
+    {
+      "name": "Justin Jiménez",
+      "github": "jj-javascript",
+      "email": "justin.raf.jimenez@gmail.com",
+      "pr": 62
+    }
+  ]
+}
