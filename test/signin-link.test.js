@@ -91,6 +91,7 @@ test('magic links follow the published engineer record and skip does not spend t
   const saved = [];
   const attached = [];
   const links = [];
+  const updates = [];
 
   process.env.FIREBASE_SERVICE_ACCOUNT_JSON = previousFirebase || '{"project_id":"test"}';
   process.env.STUDIO_ADMIN_EMAILS = '';
@@ -121,6 +122,7 @@ test('magic links follow the published engineer record and skip does not spend t
       links.push({ email, settings });
       return 'https://algorithmacy.org/portal/login/finish/?oobCode=test-code';
     },
+    updateUser: async (uid, patch) => { updates.push({ uid, patch }); },
   });
   mailer.sendMail = async (message) => { mails.push(message); };
   global.fetch = async (_url, opts) => {
@@ -183,13 +185,15 @@ test('magic links follow the published engineer record and skip does not spend t
   assert.equal(links[0].email, JUSTIN);
   assert.match(links[0].settings.url, /\/portal\/login\/finish\/$/);
   const justinLogs = logs.filter((entry) => entry[1] && entry[1].address === JUSTIN_HASH);
-  assert.deepEqual(justinLogs.map((entry) => entry[0]), ['signin email rate released', 'signin link sent']);
+  assert.deepEqual(justinLogs.map((entry) => entry[0]), ['signin link sent']);
+  assert.equal(logs.some((entry) => entry[0] === 'signin email rate released'), false);
   assert.equal(logs.some((entry) => entry[0] === 'signin link skipped'), false);
+  const justinHash = crypto.createHash('sha256').update(JUSTIN).digest('hex');
   const justinKeys = emailKeys(commands.slice(beforeJustin));
   assert.deepEqual(justinKeys, [
-    'acf:rate:email:' + crypto.createHash('sha256').update(JUSTIN).digest('hex'),
-    'acf:rate:studio:login:email:' + crypto.createHash('sha256').update(JUSTIN).digest('hex'),
+    'acf:rate:studio:login:email:' + justinHash,
   ]);
+  assert.equal(commands.slice(beforeJustin).some((command) => command[0] === 'DEL' && String(command[1]).startsWith('acf:rate:email:')), false);
   assert.equal(JSON.stringify(logs).includes(JUSTIN), false);
 
   saved.length = 0;
@@ -236,6 +240,32 @@ test('magic links follow the published engineer record and skip does not spend t
   assert.equal(JSON.stringify(logs).includes('nobody@example.com'), false);
   assert.equal(JSON.stringify(logs).includes('ada.missing@example.com'), false);
 
+  mailer.sendMail = async () => { throw Object.assign(new Error('mailgun down'), { status: 503 }); };
+  store.engineerInviteFor = async () => ({ id: 'eng-justin', name: 'Justin Jiménez', email: JUSTIN, status: 'pending' });
+  const beforeFail = commands.length;
+  const failed = await post('auth/link', { email: JUSTIN }, '203.0.113.40');
+  assert.equal(failed.statusCode, 503);
+  const failCommands = commands.slice(beforeFail).filter((command) => (
+    (command[0] === 'INCR' || command[0] === 'DECR' || command[0] === 'DEL') && String(command[1]).includes(':email:')
+  ));
+  assert.deepEqual(failCommands.map((command) => command[0]), ['INCR', 'DECR']);
+  assert.equal(failCommands.every((command) => String(command[1]).includes('studio:login:email:')), true);
+  assert.equal(failCommands.some((command) => String(command[1]).startsWith('acf:rate:email:')), false);
+  mailer.sendMail = async (message) => { mails.push(message); };
+
+  saved.length = 0;
+  mails.length = 0;
+  store.engineerInviteFor = async () => ({ id: 'eng-justin', name: 'Justin Jiménez', email: JUSTIN, status: 'revoked' });
+  const revoked = await post('auth/link', { email: JUSTIN }, '203.0.113.41');
+  assert.equal(revoked.statusCode, 200);
+  assert.deepEqual(revoked.json(), { ok: true });
+  assert.equal(saved.length, 0);
+  assert.equal(mails.length, 0);
+  assert.deepEqual(logs.at(-1), [
+    'signin link skipped',
+    { address: JUSTIN_HASH, reason: 'no account, pending invite, or admin role' },
+  ]);
+
   saved.length = 0;
   attached.length = 0;
   store.engineerInviteForGithub = async () => null;
@@ -262,7 +292,41 @@ test('magic links follow the published engineer record and skip does not spend t
     isAdmin: false,
   });
   const noreply = await post('auth/github', { token: 'gho_test' }, '203.0.113.31');
-  assert.equal(noreply.statusCode, 400);
-  assert.match(noreply.json().error, /did not share an email address/);
-  assert.equal(attached.length, 1);
+  assert.equal(noreply.statusCode, 200);
+  assert.deepEqual(noreply.json(), { ok: true, email: 'lorraine.real@example.com', refresh: true });
+  assert.deepEqual(updates, [{
+    uid: 'lorraine',
+    patch: { email: 'lorraine.real@example.com', emailVerified: true },
+  }]);
+  assert.equal(attached.at(-1).email, 'lorraine.real@example.com');
+
+  applications.githubAccount = async () => ({ login: 'Lorra-V', email: '' });
+  updates.length = 0;
+  const attachedBefore = attached.length;
+  const stillNoreply = await post('auth/github', { token: 'gho_test' }, '203.0.113.33');
+  assert.equal(stillNoreply.statusCode, 400);
+  assert.match(stillNoreply.json().error, /did not share an email address/);
+  assert.equal(updates.length, 0);
+  assert.equal(attached.length, attachedBefore);
+
+  saved.length = 0;
+  store.engineerInviteForGithub = async () => ({
+    id: 'eng-Lorra-V',
+    name: 'Lorraine Villaroel',
+    email: '',
+    github: 'Lorra-V',
+    status: 'revoked',
+  });
+  applications.githubAccount = async () => ({ login: 'Lorra-V', email: 'lorraine.real@example.com' });
+  const blocked = await post('auth/github', { token: 'gho_test' }, '203.0.113.32');
+  assert.equal(blocked.statusCode, 403);
+  assert.equal(JSON.stringify(blocked.json()).toLowerCase().includes('revoked'), false);
+  assert.equal(saved.length, 0);
+});
+
+test('audit retention keeps 400 days', () => {
+  const { auditCutoff } = require('../lib/portal/db');
+  const now = new Date('2026-10-16T12:00:00.000Z');
+  const cutoff = new Date(auditCutoff(now));
+  assert.equal(now.getTime() - cutoff.getTime(), 400 * 24 * 60 * 60 * 1000);
 });

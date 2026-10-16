@@ -75,6 +75,7 @@ export async function signInWithGithub() {
       try { await signOut(auth); } catch (e) { /* leave the message */ }
       throw new Error(plainPortalError(data.error || 'This GitHub account could not be connected.'));
     }
+    if (data.refresh) await result.user.getIdToken(true);
     return data;
   } catch (e) {
     if (e && e.code === 'auth/operation-not-allowed') {
