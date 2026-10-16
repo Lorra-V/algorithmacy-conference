@@ -29,6 +29,11 @@ test('a sign-in email line is kept and a noreply address is not', () => {
   assert.equal(signInEmail('Sign-in email: joseph@example.com'), 'joseph@example.com');
   assert.equal(signInEmail('Sign-in email: Lorra-V@users.noreply.github.com'), '');
   assert.equal(signInEmail('Sign-in email: cursoragent@cursor.com'), '');
+  assert.equal(
+    signInEmail('Sign-in email: [justin.raf.jimenez@gmail.com](mailto:justin.raf.jimenez@gmail.com)'),
+    'justin.raf.jimenez@gmail.com',
+  );
+  assert.equal(signInEmail('**Studio login email:** singhjoe57@gmail.com'), 'singhjoe57@gmail.com');
   const row = applicationFromPull({
     number: 60,
     merged_at: '2026-10-13T00:00:00Z',

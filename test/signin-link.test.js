@@ -1,11 +1,20 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const store = require('../lib/portal/db');
+const firebaseAdmin = require('../lib/portal/firebase-admin');
+const mailer = require('../lib/portal/mail');
+const portalAuth = require('../lib/portal/auth');
+const applications = require('../lib/portal/engineer-applications');
+const mfa = require('../lib/portal/mfa');
 const { dispatch } = require('../lib/portal/handlers');
+const { matchDirectoryEmail, matchDirectoryGithub } = require('../lib/portal/engineer-directory');
 
-const EMAIL = 'ada.missing@example.com';
+const JUSTIN = 'justin.raf.jimenez@gmail.com';
+const JUSTIN_HASH = '1bd99dc8e3de';
 
 function addressHash(email) {
   return crypto.createHash('sha256').update(String(email).trim().toLowerCase()).digest('hex').slice(0, 12);
@@ -23,26 +32,42 @@ function mockRes() {
   };
 }
 
-async function postLink(body, ip) {
-  const logs = [];
-  const originalInfo = console.info;
-  console.info = (...args) => { logs.push(args); };
-  const res = mockRes();
-  try {
-    await dispatch({
-      method: 'POST',
-      url: '/api/portal?path=auth/link',
-      query: { path: 'auth/link' },
-      headers: ip ? { 'x-forwarded-for': ip } : {},
-      body,
-    }, res);
-  } finally {
-    console.info = originalInfo;
-  }
-  return { res, logs };
+function emailKeys(commands) {
+  return commands
+    .filter((command) => command[0] === 'INCR' || command[0] === 'DEL')
+    .map((command) => command[1])
+    .filter((key) => key.includes(':email:'));
 }
 
-test('skipped sign-in links log a reason and a hash, not the email', async (t) => {
+test('the engineer directory agrees with the published page', () => {
+  assert.equal(addressHash(JUSTIN), JUSTIN_HASH);
+  const justin = matchDirectoryEmail('Justin.Raf.Jimenez@gmail.com');
+  assert.equal(justin.name, 'Justin Jiménez');
+  assert.equal(justin.github, 'jj-javascript');
+  assert.equal(justin.published, true);
+  assert.equal(matchDirectoryEmail('nobody@example.com'), null);
+  const lorraine = matchDirectoryGithub('lorra-v');
+  assert.equal(lorraine.name, 'Lorraine Villaroel');
+  assert.equal(lorraine.github, 'Lorra-V');
+  assert.equal(lorraine.email, '');
+  assert.equal(lorraine.published, true);
+  const login = fs.readFileSync(path.join(__dirname, '../components/portal/LoginForm.jsx'), 'utf8');
+  assert.match(login, /If you're a Studio engineer and don't get a link, sign in with GitHub or contact/);
+  assert.match(login, /mailto:roger@algorithmacy\.org/);
+});
+
+test('a published engineer still has to enroll an authenticator', async () => {
+  const previous = store.mfaRecord;
+  store.mfaRecord = async () => null;
+  try {
+    const step = await mfa.gate({ uid: 'justin', email: JUSTIN }, { headers: {} });
+    assert.equal(step, 'enroll');
+  } finally {
+    store.mfaRecord = previous;
+  }
+});
+
+test('magic links follow the published engineer record and skip does not spend the email limit', async (t) => {
   const previousFirebase = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   const previousAdmins = process.env.STUDIO_ADMIN_EMAILS;
   const previousRedisUrl = process.env.UPSTASH_REDIS_REST_URL;
@@ -50,19 +75,74 @@ test('skipped sign-in links log a reason and a hash, not the email', async (t) =
   const accountForEmail = store.accountForEmail;
   const invites = store.invites;
   const engineerInviteFor = store.engineerInviteFor;
+  const engineerInviteForGithub = store.engineerInviteForGithub;
+  const saveEngineerInvite = store.saveEngineerInvite;
+  const attachEngineerEmail = store.attachEngineerEmail;
+  const audit = store.audit;
+  const auth = firebaseAdmin.auth;
+  const sendMail = mailer.sendMail;
+  const callerFromRequest = portalAuth.callerFromRequest;
+  const githubAccount = applications.githubAccount;
   const originalFetch = global.fetch;
+  const originalInfo = console.info;
+  const logs = [];
+  const commands = [];
+  const mails = [];
+  const saved = [];
+  const attached = [];
+  const links = [];
+
   process.env.FIREBASE_SERVICE_ACCOUNT_JSON = previousFirebase || '{"project_id":"test"}';
   process.env.STUDIO_ADMIN_EMAILS = '';
   process.env.UPSTASH_REDIS_REST_URL = previousRedisUrl || 'https://example.upstash.io';
   process.env.UPSTASH_REDIS_REST_TOKEN = previousRedisToken || 'test-redis-token';
+  console.info = (...args) => { logs.push(args); };
   store.accountForEmail = async () => null;
   store.invites = () => ({ where: () => ({ get: async () => ({ docs: [] }) }) });
-  global.fetch = async () => Response.json({ result: 1 });
+  store.audit = async () => {};
+  store.saveEngineerInvite = async (row) => {
+    saved.push(row);
+    return {
+      id: 'eng-' + (row.github || 'mail'),
+      name: row.name,
+      email: row.email || '',
+      github: row.github || '',
+      pr: row.pr || 0,
+      status: 'pending',
+      profile: 'needed',
+    };
+  };
+  store.attachEngineerEmail = async (invite, email) => {
+    attached.push({ id: invite.id, email });
+    return { ...invite, email };
+  };
+  firebaseAdmin.auth = () => ({
+    generateSignInWithEmailLink: async (email, settings) => {
+      links.push({ email, settings });
+      return 'https://algorithmacy.org/portal/login/finish/?oobCode=test-code';
+    },
+  });
+  mailer.sendMail = async (message) => { mails.push(message); };
+  global.fetch = async (_url, opts) => {
+    const command = JSON.parse(opts.body);
+    commands.push(command);
+    return Response.json({ result: command[0] === 'DEL' ? 1 : 1 });
+  };
+
   t.after(() => {
     store.accountForEmail = accountForEmail;
     store.invites = invites;
     store.engineerInviteFor = engineerInviteFor;
+    store.engineerInviteForGithub = engineerInviteForGithub;
+    store.saveEngineerInvite = saveEngineerInvite;
+    store.attachEngineerEmail = attachEngineerEmail;
+    store.audit = audit;
+    firebaseAdmin.auth = auth;
+    mailer.sendMail = sendMail;
+    portalAuth.callerFromRequest = callerFromRequest;
+    applications.githubAccount = githubAccount;
     global.fetch = originalFetch;
+    console.info = originalInfo;
     if (previousFirebase === undefined) delete process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
     else process.env.FIREBASE_SERVICE_ACCOUNT_JSON = previousFirebase;
     if (previousAdmins === undefined) delete process.env.STUDIO_ADMIN_EMAILS;
@@ -73,32 +153,116 @@ test('skipped sign-in links log a reason and a hash, not the email', async (t) =
     else process.env.UPSTASH_REDIS_REST_TOKEN = previousRedisToken;
   });
 
-  store.engineerInviteFor = async () => ({ name: 'Ada Missing', email: EMAIL });
-  const unpublished = await postLink({ email: EMAIL }, '203.0.113.10');
-  assert.equal(unpublished.res.statusCode, 200);
-  assert.deepEqual(unpublished.res.json(), { ok: true });
-  assert.deepEqual(unpublished.logs, [[
-    'signin link skipped',
-    { address: addressHash(EMAIL), reason: 'engineer profile is not published' },
-  ]]);
-  assert.equal(JSON.stringify(unpublished.logs).includes(EMAIL), false);
+  async function post(path, body, ip) {
+    const res = mockRes();
+    await dispatch({
+      method: 'POST',
+      url: '/api/portal?path=' + path,
+      query: { path },
+      headers: {
+        ...(ip ? { 'x-forwarded-for': ip } : {}),
+        authorization: 'Bearer test-token',
+      },
+      body,
+    }, res);
+    return res;
+  }
 
   store.engineerInviteFor = async () => null;
-  const unknown = await postLink({ email: 'nobody@example.com' }, '203.0.113.11');
-  assert.equal(unknown.res.statusCode, 200);
-  assert.deepEqual(unknown.res.json(), { ok: true });
-  assert.deepEqual(unknown.logs, [[
+  const beforeJustin = commands.length;
+  const justin = await post('auth/link', { email: 'Justin.Raf.Jimenez@gmail.com' }, '203.0.113.20');
+  assert.equal(justin.statusCode, 200);
+  assert.deepEqual(justin.json(), { ok: true });
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0].email, JUSTIN);
+  assert.equal(saved[0].github, 'jj-javascript');
+  assert.equal(saved[0].name, 'Justin Jiménez');
+  assert.equal(mails.length, 1);
+  assert.equal(mails[0].to, JUSTIN);
+  assert.match(mails[0].text, /oobCode=test-code/);
+  assert.equal(links[0].email, JUSTIN);
+  assert.match(links[0].settings.url, /\/portal\/login\/finish\/$/);
+  const justinLogs = logs.filter((entry) => entry[1] && entry[1].address === JUSTIN_HASH);
+  assert.deepEqual(justinLogs.map((entry) => entry[0]), ['signin email rate released', 'signin link sent']);
+  assert.equal(logs.some((entry) => entry[0] === 'signin link skipped'), false);
+  const justinKeys = emailKeys(commands.slice(beforeJustin));
+  assert.deepEqual(justinKeys, [
+    'acf:rate:email:' + crypto.createHash('sha256').update(JUSTIN).digest('hex'),
+    'acf:rate:studio:login:email:' + crypto.createHash('sha256').update(JUSTIN).digest('hex'),
+  ]);
+  assert.equal(JSON.stringify(logs).includes(JUSTIN), false);
+
+  saved.length = 0;
+  mails.length = 0;
+  store.engineerInviteFor = async () => ({ id: 'eng-justin', name: 'Justin Jimenez', email: JUSTIN, status: 'pending' });
+  const accent = await post('auth/link', { email: JUSTIN }, '203.0.113.21');
+  assert.equal(accent.statusCode, 200);
+  assert.equal(saved.length, 0);
+  assert.equal(mails.length, 1);
+  assert.equal(logs.some((entry) => entry[0] === 'signin link skipped' && entry[1].address === JUSTIN_HASH), false);
+
+  mails.length = 0;
+  const beforeSkip = commands.length;
+  store.engineerInviteFor = async () => ({ name: 'Ada Missing', email: 'ada.missing@example.com' });
+  const unpublished = await post('auth/link', { email: 'ada.missing@example.com' }, '203.0.113.10');
+  assert.equal(unpublished.statusCode, 200);
+  assert.deepEqual(unpublished.json(), { ok: true });
+  assert.equal(mails.length, 0);
+  assert.deepEqual(logs.at(-1), [
+    'signin link skipped',
+    { address: addressHash('ada.missing@example.com'), reason: 'engineer profile is not published' },
+  ]);
+  assert.deepEqual(emailKeys(commands.slice(beforeSkip)), []);
+
+  const beforeUnknown = commands.length;
+  store.engineerInviteFor = async () => null;
+  const unknown = await post('auth/link', { email: 'nobody@example.com' }, '203.0.113.11');
+  assert.equal(unknown.statusCode, 200);
+  assert.deepEqual(unknown.json(), { ok: true });
+  assert.deepEqual(logs.at(-1), [
     'signin link skipped',
     { address: addressHash('nobody@example.com'), reason: 'no account, pending invite, or admin role' },
-  ]]);
-  assert.equal(JSON.stringify(unknown.logs).includes('nobody@example.com'), false);
+  ]);
+  assert.deepEqual(emailKeys(commands.slice(beforeUnknown)), []);
+  assert.equal(commands.slice(beforeUnknown).some((command) => String(command[1]).includes('studio:login')), true);
 
-  const honeypot = await postLink({ email: EMAIL, website: 'https://spam.example' });
-  assert.equal(honeypot.res.statusCode, 200);
-  assert.deepEqual(honeypot.res.json(), { ok: true });
-  assert.deepEqual(honeypot.logs, [[
+  const honeypot = await post('auth/link', { email: JUSTIN, website: 'https://spam.example' });
+  assert.equal(honeypot.statusCode, 200);
+  assert.deepEqual(honeypot.json(), { ok: true });
+  assert.deepEqual(logs.at(-1), [
     'signin link skipped',
-    { address: addressHash(EMAIL), reason: 'honeypot' },
-  ]]);
-  assert.equal(JSON.stringify(honeypot.logs).includes(EMAIL), false);
+    { address: JUSTIN_HASH, reason: 'honeypot' },
+  ]);
+  assert.equal(JSON.stringify(logs).includes('nobody@example.com'), false);
+  assert.equal(JSON.stringify(logs).includes('ada.missing@example.com'), false);
+
+  saved.length = 0;
+  attached.length = 0;
+  store.engineerInviteForGithub = async () => null;
+  portalAuth.callerFromRequest = async () => ({
+    uid: 'lorraine',
+    email: 'lorraine.real@example.com',
+    name: 'Lorraine Villaroel',
+    isAdmin: false,
+  });
+  applications.githubAccount = async () => ({ login: 'Lorra-V', email: 'lorraine.real@example.com' });
+  const github = await post('auth/github', { token: 'gho_test' }, '203.0.113.30');
+  assert.equal(github.statusCode, 200);
+  assert.deepEqual(github.json(), { ok: true, email: 'lorraine.real@example.com' });
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0].name, 'Lorraine Villaroel');
+  assert.equal(saved[0].github, 'Lorra-V');
+  assert.equal(saved[0].email, '');
+  assert.deepEqual(attached, [{ id: 'eng-Lorra-V', email: 'lorraine.real@example.com' }]);
+
+  portalAuth.callerFromRequest = async () => ({
+    uid: 'lorraine',
+    email: 'lorra-v@users.noreply.github.com',
+    name: 'Lorraine Villaroel',
+    isAdmin: false,
+  });
+  const noreply = await post('auth/github', { token: 'gho_test' }, '203.0.113.31');
+  assert.equal(noreply.statusCode, 400);
+  assert.match(noreply.json().error, /did not share an email address/);
+  assert.equal(attached.length, 1);
 });

@@ -1,12 +1,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { publishedEngineer, publishedEngineers } = require('../lib/portal/published-engineers');
+const { normalizeName, publishedEngineer, publishedEngineers } = require('../lib/portal/published-engineers');
 
 test('the merged Studio page lists the engineers who have a photo and a profile', () => {
   const people = publishedEngineers();
   assert.deepEqual(people.map((person) => person.name), ['Roger Hunt', 'Joseph Singh', 'Lorraine Villaroel', 'Justin Jiménez']);
   assert.equal(publishedEngineer('roger hunt').photo, '/images/speakers/roger-hunt.jpg');
   assert.equal(publishedEngineer('Justin Jiménez').photo, '/images/speakers/justin-jimenez.jpeg');
+  assert.equal(normalizeName('Justin Jiménez'), 'justin jimenez');
+  assert.equal(publishedEngineer('Justin Jimenez').name, 'Justin Jiménez');
   assert.equal(publishedEngineer('Joseph Example'), null);
 });
 

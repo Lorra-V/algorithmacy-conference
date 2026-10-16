@@ -104,6 +104,9 @@ export function LoginForm({
             <div className="desk-field-wide"><button className="btn-quiet" type="button" onClick={github}>Continue with GitHub</button></div>
           </>
         ) : null}
+        {showBookLink ? (
+          <p className="portal-or desk-field-wide">If you're a Studio engineer and don't get a link, sign in with GitHub or contact <a href="mailto:roger@algorithmacy.org">roger@algorithmacy.org</a>.</p>
+        ) : null}
       </form>
       {showBookLink ? (
         <p className="portal-or">Booked a call or sent a note, and no invite yet? That is expected. The account is created after the call. <a href="/book/">Book a 20-minute call</a>.</p>

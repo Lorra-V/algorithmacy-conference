@@ -1,6 +1,6 @@
 import { htmlRewrites } from './scripts/static-site.mjs';
 
-const traced = ['./studio/index.html', './images/speakers/**/*'];
+const traced = ['./studio/index.html', './images/speakers/**/*', './lib/portal/studio-engineers.json'];
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
