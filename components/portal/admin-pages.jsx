@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { usePortal } from './session';
 import { ConnectionPanel, Empty, Ledger, LedgerRow, PageHead } from './ui';
 import { storeMfa } from './client';
-import { label, statusClass, whenLabel } from './format';
+import { label, monthLabel, statusClass, whenLabel } from './format';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -25,11 +25,10 @@ function useConfirmReset() {
   };
 }
 
-function needsLine(detail) {
-  if (!detail || !detail.account) return '';
-  const open = (detail.requests || []).filter((item) => item.status === 'open').length;
-  const waiting = (detail.approvals || []).filter((item) => item.status === 'pending').length;
-  const bill = detail.account.billingStatus || 'none';
+function needsLine(row, billingStatus) {
+  const open = (row && row.openRequests) || 0;
+  const waiting = (row && row.pendingApprovals) || 0;
+  const bill = billingStatus || 'none';
   const reasons = [];
   if (open) reasons.push(open === 1 ? '1 open request' : open + ' open requests');
   if (waiting) reasons.push(waiting === 1 ? '1 approval waiting' : waiting + ' approvals waiting');
@@ -38,9 +37,37 @@ function needsLine(detail) {
   return reasons.join('. ');
 }
 
+function KeyOnce({ value, onDone }) {
+  const [copied, setCopied] = useState(false);
+  if (!value) return null;
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+    } catch (e) {
+      setCopied(false);
+    }
+  }
+  return (
+    <div>
+      <p className="key-once">Copy this key now. It is not shown again. {value}</p>
+      <div className="portal-actions">
+        <button type="button" className="btn-quiet" onClick={copy}>{copied ? 'Copied' : 'Copy'}</button>
+        <button type="button" className="btn" onClick={onDone}>I have copied this key</button>
+      </div>
+    </div>
+  );
+}
+
 export function AdminHome() {
   const { me, api } = usePortal();
   const router = useRouter();
+  const search = useSearchParams();
+  const prefill = {
+    office: search.get('office') || '',
+    name: search.get('name') || '',
+    email: search.get('email') || '',
+  };
   const [accounts, setAccounts] = useState(null);
   const [reasons, setReasons] = useState({});
   const [error, setError] = useState('');
@@ -49,19 +76,16 @@ export function AdminHome() {
   useEffect(() => {
     if (!me) return undefined;
     let cancel = false;
-    api('admin/accounts').then(async (data) => {
+    api('admin/accounts').then((data) => {
       const list = data.accounts || [];
       if (cancel) return;
       setAccounts(list);
-      const details = await Promise.all(list.map((account) => (
-        api('admin/accounts/' + encodeURIComponent(account.id)).catch(() => null)
-      )));
-      if (cancel) return;
+      const byId = {};
+      (data.needs || []).forEach((row) => { byId[row.id] = row; });
       const next = {};
-      details.forEach((detail) => {
-        if (!detail || !detail.account) return;
-        const line = needsLine(detail);
-        if (line) next[detail.account.id] = line;
+      list.forEach((account) => {
+        const line = needsLine(byId[account.id], account.billingStatus);
+        if (line) next[account.id] = line;
       });
       setReasons(next);
     }).catch((err) => { if (!cancel) setError(err.message); });
@@ -77,7 +101,8 @@ export function AdminHome() {
         method: 'POST',
         body: { office: fd.get('office'), kind: fd.get('kind'), name: fd.get('name'), email: fd.get('email') },
       });
-      router.push('/portal/admin/account/?id=' + encodeURIComponent(created.account.id));
+      const flag = created.mailed === false ? 'unsent' : 'sent';
+      router.push('/portal/admin/account/?id=' + encodeURIComponent(created.account.id) + '&invited=' + flag);
     } catch (err) {
       setError(err.message);
     }
@@ -99,8 +124,8 @@ export function AdminHome() {
         ) : <Empty>No accounts yet. The first one is created with the form below, after a call.</Empty>}
       </section>
       <h2>New account</h2>
-      <form className="desk-fields" onSubmit={create}>
-        <label className="desk-field"><span>Business</span><input name="office" required /></label>
+      <form className="desk-fields" key={prefill.office + prefill.email + prefill.name} onSubmit={create}>
+        <label className="desk-field"><span>Business</span><input name="office" required defaultValue={prefill.office} /></label>
         <label className="desk-field"><span>Kind</span>
           <select name="kind" required defaultValue="">
             <option value="">Choose one</option>
@@ -111,8 +136,8 @@ export function AdminHome() {
             <option>owner-run office</option>
           </select>
         </label>
-        <label className="desk-field"><span>Owner name</span><input name="name" required /></label>
-        <label className="desk-field"><span>Owner email</span><input type="email" name="email" required /></label>
+        <label className="desk-field"><span>Owner name</span><input name="name" required defaultValue={prefill.name} /></label>
+        <label className="desk-field"><span>Owner email</span><input type="email" name="email" required defaultValue={prefill.email} /></label>
         <div className="desk-field-wide portal-actions"><button className="btn" type="submit">Create and invite</button></div>
         {error ? <p className="desk-status desk-field-wide">{error}</p> : null}
       </form>
@@ -158,6 +183,9 @@ export function AdminLeads() {
               <LedgerRow key={(lead.email || labelName) + (lead.start || lead.createdAt)} when={whenLabel(lead.start || lead.createdAt)} state={hasAccount ? '' : 'waiting'} stateName={hasAccount ? source : 'Not an account yet'}>
                 <b>{labelName}</b>
                 {bits.length ? <p className="ledger-detail">{bits.join('. ')}.</p> : null}
+                {!hasAccount && lead.email ? (
+                  <p className="ledger-detail"><Link href={'/portal/admin/?office=' + encodeURIComponent(lead.business || '') + '&name=' + encodeURIComponent(lead.name || '') + '&email=' + encodeURIComponent(lead.email)}>New account from this lead</Link></p>
+                ) : null}
               </LedgerRow>
             );
           })}
@@ -174,6 +202,7 @@ export function AdminEngineers() {
   const [applications, setApplications] = useState([]);
   const [applicationNote, setApplicationNote] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const sub = 'Invite someone after their photo and profile are merged.';
   const owner = !!(me && me.user && me.user.owner);
 
@@ -194,13 +223,20 @@ export function AdminEngineers() {
     return () => { cancel = true; };
   }, [me, api]);
 
+  function inviteResult(result, hadEmail) {
+    if (!hadEmail) return 'Saved. No email was on the application, so no invite mail was sent.';
+    return result.mailed === false ? 'Saved, but the email did not send.' : 'Invite sent.';
+  }
+
   async function inviteGithub(row) {
     setError('');
+    setNotice('');
     try {
-      await api('admin/engineers', {
+      const result = await api('admin/engineers', {
         method: 'POST',
         body: { name: row.name, github: row.login, pr: Number(row.pr), email: row.email || '' },
       });
+      setNotice(inviteResult(result, !!row.email));
       refresh();
     } catch (err) {
       setError(err.message);
@@ -225,10 +261,12 @@ export function AdminEngineers() {
   async function invite(event) {
     event.preventDefault();
     setError('');
+    setNotice('');
     const fd = new FormData(event.target);
     try {
-      await api('admin/engineers', { method: 'POST', body: { name: fd.get('name'), email: fd.get('email') } });
+      const result = await api('admin/engineers', { method: 'POST', body: { name: fd.get('name'), email: fd.get('email') } });
       event.target.reset();
+      setNotice(inviteResult(result, true));
       refresh();
     } catch (err) {
       setError(err.message);
@@ -243,7 +281,8 @@ export function AdminEngineers() {
         <>
           <h2>Engineer applications</h2>
           <p className="role-note">The pull request stays tied to the GitHub account that opened it. Merge it, then invite that account.</p>
-          {applicationNote ? <p className="desk-status">{applicationNote}</p> : null}
+          {notice ? <p className="saved">{notice}</p> : null}
+          {applicationNote ? <p className="desk-status" role="alert">{applicationNote}</p> : null}
           {applications.length ? (
             <Ledger heads={['Person', 'Status', 'Pull request']}>
               {applications.map((row) => (
@@ -298,12 +337,15 @@ export function AdminEngineers() {
 
 export function AdminAccount() {
   const { me, api, refresh, openClientPreview } = usePortal();
-  const id = useSearchParams().get('id') || '';
+  const search = useSearchParams();
+  const id = search.get('id') || '';
+  const invited = search.get('invited') || '';
   const reset = useConfirmReset();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
   const [keyText, setKeyText] = useState('');
+  const [reportNote, setReportNote] = useState('');
 
   useEffect(() => {
     if (!me || !id) return undefined;
@@ -340,7 +382,7 @@ export function AdminAccount() {
     const fd = new FormData(event.target);
     try {
       const created = await api('admin/agents', { method: 'POST', body: { accountId: id, name: fd.get('name'), chore: fd.get('chore'), steps: fd.get('steps') } });
-      setKeyText('Copy this key now. It is not shown again. ' + created.agent.apiKey);
+      setKeyText(created.agent.apiKey || '');
     } catch (err) {
       setError(err.message);
     }
@@ -349,7 +391,7 @@ export function AdminAccount() {
     setError('');
     try {
       const shown = await api('admin/agents/key', { method: 'POST', body: { accountId: id, agentId } });
-      setKeyText('Copy this key now. It is not shown again. ' + shown.apiKey);
+      setKeyText(shown.apiKey || '');
     } catch (err) {
       setError(err.message);
     }
@@ -383,10 +425,10 @@ export function AdminAccount() {
       setError(err.message);
     }
   }
-  async function approve(approvalId) {
+  async function decideApproval(approvalId, decision) {
     setError('');
     try {
-      await api('admin/approvals', { method: 'POST', body: { accountId: id, id: approvalId, decision: 'approved' } });
+      await api('admin/approvals', { method: 'POST', body: { accountId: id, id: approvalId, decision } });
       refresh();
     } catch (err) {
       setError(err.message);
@@ -403,9 +445,10 @@ export function AdminAccount() {
   }
   async function report() {
     setError('');
+    setReportNote('');
     try {
-      await api('admin/reports', { method: 'POST', body: { accountId: id } });
-      openClientPreview(id, '/portal/reports/');
+      const written = await api('admin/reports', { method: 'POST', body: { accountId: id } });
+      setReportNote((written.report && written.report.month) || '');
     } catch (err) {
       setError(err.message);
     }
@@ -415,6 +458,8 @@ export function AdminAccount() {
 
   return (
     <PageHead title={acc.office} sub={sub}>
+      {invited === 'sent' ? <p className="saved">Invite sent.</p> : null}
+      {invited === 'unsent' ? <p className="desk-status" role="alert">Saved, but the email did not send.</p> : null}
       <section className="portal-section">
         <h2>Requests</h2>
         {requests.length ? (
@@ -434,8 +479,13 @@ export function AdminAccount() {
           <Ledger>
             {pending.map((item) => (
               <LedgerRow key={item.id} when={whenLabel(item.createdAt)} state="waiting" stateName="Waiting">
-                {item.summary}
-                <div className="portal-actions"><button className="btn" type="button" onClick={() => approve(item.id)}>Approve</button></div>
+                {item.subject || item.summary}
+                {(item.draft || item.detail || item.summary) ? <p className="ledger-detail">{item.draft || item.detail || item.summary}</p> : null}
+                {item.why ? <p className="ledger-detail">{item.why}</p> : null}
+                <div className="portal-actions">
+                  <button className="btn" type="button" onClick={() => decideApproval(item.id, 'approved')}>Approve</button>
+                  <button className="btn-quiet" type="button" onClick={() => decideApproval(item.id, 'declined')}>Decline</button>
+                </div>
               </LedgerRow>
             ))}
           </Ledger>
@@ -470,7 +520,7 @@ export function AdminAccount() {
           <label className="desk-field desk-field-wide"><span>Flow, one step per line</span><textarea name="steps" rows={4} placeholder="Optional. A new inquiry arrives." /></label>
           <div className="desk-field-wide portal-actions"><button className="btn" type="submit">Create agent</button></div>
         </form>
-        {keyText ? <p className="key-once">{keyText}</p> : null}
+        <KeyOnce value={keyText} onDone={() => setKeyText('')} />
       </section>
       <section className="portal-section">
         <h2>Note</h2>
@@ -478,7 +528,13 @@ export function AdminAccount() {
           <label className="desk-field desk-field-wide"><span>What happened</span><input name="summary" required /></label>
           <div className="desk-field-wide portal-actions"><button className="btn" type="submit">Post to the activity log</button></div>
         </form>
-        <div className="portal-actions"><button className="btn" type="button" onClick={report}>Write this month’s report</button></div>
+        <div className="portal-actions"><button className="btn" type="button" onClick={report}>Write last month’s report</button></div>
+        {reportNote ? (
+          <p className="saved">
+            {monthLabel(reportNote)} is written.{' '}
+            <button type="button" className="btn-quiet" onClick={() => openClientPreview(id, '/portal/reports/?month=' + encodeURIComponent(reportNote))}>Open the report</button>
+          </p>
+        ) : null}
       </section>
       <details className="portal-section rarely">
         <summary>Rarely</summary>

@@ -19,10 +19,10 @@ async function sendLink(address, website, oauthReturn) {
   const res = await fetch('/api/portal/auth/link', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: address, website: website || '' }),
+    body: JSON.stringify({ email: address, website: website || '', next: loginNext() }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'We could not send that link. Try again, or write to roger@algorithmacy.org.');
+  if (!res.ok) throw new Error(data.error || 'We could not send that link. Try again, or write to topanga@algorithmacy.org.');
 }
 
 export function LoginForm({
@@ -38,6 +38,7 @@ export function LoginForm({
   const [configured, setConfigured] = useState(null);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let cancel = false;
@@ -48,13 +49,16 @@ export function LoginForm({
   async function onSubmit(event) {
     event.preventDefault();
     setError('');
+    setBusy(true);
     const fd = new FormData(event.target);
     const address = String(fd.get('email') || '').trim();
     try {
       await sendLink(address, fd.get('website') || '', oauthReturn);
       setStatus(note);
     } catch (e) {
-      setError(authMessage(e, 'We could not send that link. Try again, or write to roger@algorithmacy.org.'));
+      setError(authMessage(e, 'We could not send that link. Try again, or write to topanga@algorithmacy.org.'));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -95,8 +99,8 @@ export function LoginForm({
         <p className="book-hp" hidden>
           <input name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" />
         </p>
-        <div className="desk-field-wide"><button className="btn" type="submit">Email me a link</button></div>
-        {error ? <p className="desk-status desk-field-wide">{error}</p> : null}
+        <div className="desk-field-wide"><button className="btn" type="submit" disabled={busy}>Email me a link</button></div>
+        {error ? <p className="desk-status desk-field-wide" role="alert">{error}</p> : null}
         <p className="portal-or desk-field-wide" role="status">{status}</p>
         {configured ? (
           <>

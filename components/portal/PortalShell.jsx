@@ -141,34 +141,18 @@ function PreviewBar({ me }) {
 }
 
 function EngineerTask({ me }) {
-  const { mode, markProfile } = usePortal();
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
+  const { mode } = usePortal();
   const task = me && me.user && me.user.engineerTask;
   if (!task || mode !== 'engineer') return null;
-  async function opened() {
-    setBusy(true);
-    setError('');
-    try {
-      await markProfile();
-    } catch (e) {
-      setBusy(false);
-      setError(e.message);
-    }
-  }
   return (
     <section className="notice" id="engineer-task">
-      <p><b>Add your photo and two sentences.</b> This is the public profile under Your Engineers. It does not sign you in.</p>
+      <p><b>Add your photo and two sentences.</b> This is the public profile under Your Engineers. It does not sign you in. The task stays until that profile is on the Studio page.</p>
       <ol className="engineer-steps">
         <li>Fork <a href={task.repo}>the repository</a>.</li>
         <li>Add a square photo at <code>{task.photo}</code>.</li>
         <li>In <code>studio/index.html</code>, find “Your Engineers.” Copy either person block and put yours after it. Change the photo path, your name, two sentences a client could read, and your LinkedIn link. <a href={task.page}>The section is here.</a></li>
         <li>Open a pull request to main. Leave out client names, keys, and documents.</li>
       </ol>
-      <div className="portal-actions">
-        <button type="button" className="btn" id="profile-opened" disabled={busy} onClick={opened}>I’ve opened the pull request</button>
-      </div>
-      {error ? <p className="desk-status" id="profile-error">{error}</p> : null}
     </section>
   );
 }
@@ -242,7 +226,8 @@ function AuthenticatedChrome({ children }) {
     return (
       <Frame page={page} user={portal.viewer && portal.viewer.user} account={null} mode={portal.mode}>
         <header className="page-head"><h1>Something went wrong.</h1></header>
-        <p className="desk-status">{portal.error}</p>
+        <p className="desk-status" role="alert">{portal.error}</p>
+        <div className="portal-actions"><button type="button" className="btn" onClick={() => window.location.reload()}>Reload</button></div>
       </Frame>
     );
   }

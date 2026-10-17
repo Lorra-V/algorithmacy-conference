@@ -32,4 +32,4 @@ The agent does not send client documents, and it does not send a transcript of a
 
 ## What the office sees
 
-The event appears on `/portal/activity`. An approval appears on `/portal/approvals`. A weekly digest emails the members who asked for one. The monthly report is a page at `/portal/reports`, written from that month’s events.
+The event appears on the agent’s activity at `/portal/agents/?agent=`, filtered to that agent. Older reports for the office are at `/portal/activity`. An approval appears on `/portal/approvals`. When the event needs approval, `detail` is stored as the draft the office reads before it decides. A weekly digest emails the members who asked for one. The monthly report is a page at `/portal/reports`, written from that month’s events.

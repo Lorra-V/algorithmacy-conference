@@ -28,7 +28,7 @@ The canonical, always-current details live in the repo root: `/llms-full.txt` an
 | Submission MCP server | `https://algorithmacy.org/api/mcp` |
 | Submission HTTP API | `POST https://algorithmacy.org/api/submit` |
 | GitHub repo | `github.com/rogerSuperBuilderAlpha/algorithmacy-conference` |
-| **Abstract deadline** | **1 August 2026** |
+| **Abstract deadline** | **Open. No fixed date.** |
 | Style | APA 7 · open access · CC BY 4.0 |
 | Review | Open, signed, published. No anonymized stage. |
 | Conference contact | Roger Hunt — rhunt@bentley.edu |

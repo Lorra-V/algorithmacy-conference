@@ -109,7 +109,7 @@ export function MfaPanel({ me, onDone }) {
       {step === 'failed' ? (
         <>
           <h1>Set up an authenticator.</h1>
-          <p className="desk-status">{error}</p>
+          <p className="desk-status" role="alert">{error}</p>
           <div className="desk-field-wide"><button className="btn-quiet" type="button" onClick={signOutUser}>Sign out</button></div>
         </>
       ) : null}
@@ -126,7 +126,7 @@ export function MfaPanel({ me, onDone }) {
               <input name="code" inputMode="numeric" autoComplete="one-time-code" required pattern="[0-9 ]{6,8}" />
             </label>
             <div className="desk-field-wide"><button className="btn" type="submit" disabled={busy}>Confirm</button></div>
-            {error ? <p className="desk-status desk-field-wide">{error}</p> : null}
+            {error ? <p className="desk-status desk-field-wide" role="alert">{error}</p> : null}
             <div className="desk-field-wide"><button className="btn-quiet" type="button" onClick={signOutUser}>Sign out</button></div>
           </form>
         </>
@@ -145,14 +145,14 @@ export function MfaPanel({ me, onDone }) {
       {step === 'verify' ? (
         <>
           <h1>Enter your code.</h1>
-          <p className="portal-login-lead">Enter the 6-digit code from your authenticator. A saved backup code works too. If you have lost both, write to roger@algorithmacy.org.</p>
+          <p className="portal-login-lead">Enter the 6-digit code from your authenticator. A saved backup code works too. If you have lost both, write to topanga@algorithmacy.org.</p>
           <form className="desk-fields" onSubmit={verify}>
             <label className="desk-field desk-field-wide">
               <span>Authenticator code</span>
               <input name="code" autoComplete="one-time-code" autoCapitalize="off" spellCheck="false" required />
             </label>
             <div className="desk-field-wide"><button className="btn" type="submit" disabled={busy}>Continue</button></div>
-            {error ? <p className="desk-status desk-field-wide">{error}</p> : null}
+            {error ? <p className="desk-status desk-field-wide" role="alert">{error}</p> : null}
             <div className="desk-field-wide"><button className="btn-quiet" type="button" onClick={signOutUser}>Sign out</button></div>
           </form>
         </>

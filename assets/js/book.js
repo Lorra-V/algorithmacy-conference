@@ -171,9 +171,12 @@ function draw(root, data) {
       }).then(function (body) {
         var when = body.meeting && body.meeting.when ? body.meeting.when : 'the time you picked';
         var manage = body.meeting && body.meeting.manageUrl ? body.meeting.manageUrl : '/book/';
+        var mailNote = body.mailed === false
+          ? 'The call is booked. The confirmation email did not send. Use the link below to change or cancel it.'
+          : 'A confirmation is on its way, with a calendar file.';
         root.innerHTML =
           '<div class="book-confirm"><h3>Booked.</h3>' +
-          '<p>' + esc(when) + '. A confirmation is on its way, with a calendar file.</p>' +
+          '<p>' + esc(when) + '. ' + esc(mailNote) + '</p>' +
           '<p>This call is not an account. If the work fits, an invite to the portal arrives at this email after the call. Until then, sign-in will not find you.</p>' +
           (body.meeting && body.meeting.video ? '<p>Link: ' + esc(body.meeting.video) + '</p>' : '') +
           '<p><a href="' + esc(manage) + '">Change or cancel</a></p></div>';
@@ -215,6 +218,7 @@ function show(root, token, meeting) {
     '</div>';
   var cancel = document.getElementById('book-cancel');
   if (cancel) cancel.addEventListener('click', function () {
+    if (!window.confirm('Cancel this call?')) return;
     cancel.disabled = true;
     post({ action: 'cancel', token: token }).then(function () {
       meeting.status = 'cancelled';

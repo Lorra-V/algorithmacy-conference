@@ -89,7 +89,7 @@ Optional:
                    Samuel Fosso Wamba) or "Critical Cultural Research" (chaired
                    by Sarah Witmer); still pick a track
 
-Submissions close 2026-08-01. All submissions and reviews are public; the pull
+The call for papers is open, with no fixed abstract date. All submissions and reviews are public; the pull
 request timestamp is the author's priority record.`);
   }
 

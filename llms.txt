@@ -14,7 +14,7 @@ Algorithmacy names the worker-level capacity behind triadic, algorithmically-med
 - [Keynotes](https://algorithmacy.org/#keynotes): keynote speakers
 
 ## Call for papers
-- Submission deadline: 1 August 2026
+- Submission deadline: the call is open, with no fixed abstract date
 - Submission types: full paper (6–8 pp), research note (2–3 pp), panel (3–4 participants), poster (visual + 1-page abstract), practitioner report (2–4 pp)
 - Tracks: TR.01 Coordination & Mediation · TR.02 Algorithmic Management · TR.03 Platform Labor & Worker Voice · TR.04 Trust, Opacity & Governance · TR.05 Methods, Lineage & Practice
 - Format: APA 7 · open access · review is open, signed, published, and timestamped (no anonymized stage)

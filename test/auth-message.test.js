@@ -16,7 +16,7 @@ test('sign-in errors tell the person what to do', async () => {
     'The sign-in page could not reach the server. Try again.',
   );
   assert.equal(authMessage(new Error('A valid email is required.')), 'A valid email is required.');
-  assert.match(plainPortalError('Firebase is not configured.'), /roger@algorithmacy.org/);
+  assert.match(plainPortalError('Firebase is not configured.'), /topanga@algorithmacy.org/);
   assert.equal(plainPortalError('This address is not an engineer yet.'), 'This address is not an engineer yet.');
   assert.doesNotMatch(authMessage({ message: 'Firebase: Error (auth/internal-error).' }), /[Ff]irebase/);
 });

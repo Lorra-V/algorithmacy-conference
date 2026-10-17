@@ -32,6 +32,19 @@ function isPreview(me) {
   return !!(me && me.account && me.account.preview);
 }
 
+function canPay(me) {
+  if (!me || !me.account || isPreview(me)) return false;
+  return me.account.role === 'owner' || !!(me.user && me.user.isAdmin);
+}
+
+function decisionNote(item, decision) {
+  const sawBody = !!(item && (item.draft || item.detail));
+  if (decision === 'declined') {
+    return sawBody ? 'Declined. It will not be sent.' : 'Declined. The summary will not be sent.';
+  }
+  return sawBody ? 'Approved. This kind of message can go out.' : 'Approved. The summary was approved.';
+}
+
 function useLoad(me, load) {
   const loadRef = useRef(load);
   loadRef.current = load;
@@ -68,7 +81,7 @@ export function PortalHome() {
   const sub = 'What needs you now.';
   if (!me || load.loading) return <PageHead title="Home" sub={sub}><p className="portal-loading">Loading.</p></PageHead>;
   if (!me.account) return <PageHead title="Home" sub={sub}><NoAccount me={me} /></PageHead>;
-  if (load.error) return <PageHead title="Home" sub={sub}><p className="desk-status">{load.error}</p></PageHead>;
+  if (load.error) return <PageHead title="Home" sub={sub}><p className="desk-status" role="alert">{load.error}</p></PageHead>;
 
   const agents = load.data.log.agents || [];
   const rows = byNewest(load.data.log.activity || [], 'ts');
@@ -115,7 +128,9 @@ export function PortalHome() {
               ? 'The card failed. Update it to keep the agents running.'
               : '$6,000 starts the account: $5,000 to set the agents up and $1,000 for the first month.'}
           </p>
-          <div className="portal-actions"><Link className="btn" href="/portal/billing/">{status === 'past_due' || status === 'unpaid' ? 'Update payment' : 'Pay $6,000 to start'}</Link></div>
+          {canPay(me) ? (
+            <div className="portal-actions"><Link className="btn" href="/portal/billing/">{status === 'past_due' || status === 'unpaid' ? 'Update payment' : 'Pay $6,000 to start'}</Link></div>
+          ) : <p>An owner pays for this office.</p>}
         </section>
       ) : null}
       <section className="portal-section">
@@ -149,7 +164,7 @@ export function AgentsHome() {
   const sub = 'The agents set up for this office.';
   if (!me || load.loading) return <PageHead title="Agents" sub={sub}><p className="portal-loading">Loading.</p></PageHead>;
   if (!me.account) return <PageHead title="Agents" sub={sub}><NoAccount me={me} /></PageHead>;
-  if (load.error) return <PageHead title="Agents" sub={sub}><p className="desk-status">{load.error}</p></PageHead>;
+  if (load.error) return <PageHead title="Agents" sub={sub}><p className="desk-status" role="alert">{load.error}</p></PageHead>;
 
   const agents = load.data.agents || [];
   const rows = byNewest(load.data.activity || [], 'ts');
@@ -247,7 +262,7 @@ export function ActivityPage() {
           {agents.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select></label>
       </div>
-      {error ? <p className="desk-status">{error}</p> : null}
+      {error ? <p className="desk-status" role="alert">{error}</p> : null}
       {rows == null ? <p className="portal-loading">Loading.</p> : (rows.length ? (
         <Ledger>
           {rows.map((row) => (
@@ -303,7 +318,7 @@ export function ApprovalsPage() {
           {items.map((item) => {
             const subject = item.subject || item.summary || 'Draft';
             const why = item.why || 'A person signs off before a new kind of message goes out.';
-            const draft = item.draft || item.summary || '';
+            const draft = item.draft || item.detail || item.summary || '';
             const state = done[item.id];
             return (
               <article className="record piece" key={item.id}>
@@ -317,9 +332,7 @@ export function ApprovalsPage() {
                 <p>{why}</p>
                 {draft ? <blockquote className="piece-draft">{draft}</blockquote> : null}
                 {state === 'approved' || state === 'declined' ? (
-                  <p className="saved">{state === 'approved'
-                    ? 'Approved. This kind of message can go out.'
-                    : 'Declined. It will not be sent.'}</p>
+                  <p className="saved">{decisionNote(item, state)}</p>
                 ) : preview ? null : (
                   <>
                     <p className="role-note">Approve records your sign-off, so this kind of message can go out. Decline stops this draft. It will not be sent.</p>
@@ -334,7 +347,7 @@ export function ApprovalsPage() {
           })}
         </div>
       ) : <Empty>Nothing is waiting on you.</Empty>)}
-      {error ? <p className="desk-status">{error}</p> : null}
+      {error ? <p className="desk-status" role="alert">{error}</p> : null}
     </PageHead>
   );
 }
@@ -344,6 +357,7 @@ export function RequestsPage() {
   const [rows, setRows] = useState(null);
   const [error, setError] = useState('');
   const [sent, setSent] = useState('');
+  const [busy, setBusy] = useState(false);
   const sub = 'Ask for a change. The studio answers within one business day.';
 
   useEffect(() => {
@@ -359,6 +373,7 @@ export function RequestsPage() {
     event.preventDefault();
     setError('');
     setSent('');
+    setBusy(true);
     const form = event.target;
     try {
       await api('requests', { method: 'POST', body: { summary: new FormData(form).get('summary') } });
@@ -368,6 +383,8 @@ export function RequestsPage() {
       setRows(byNewest(data.requests, 'createdAt'));
     } catch (err) {
       setError(err.message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -382,9 +399,9 @@ export function RequestsPage() {
           <span>What should change</span>
           <input name="summary" required maxLength={500} placeholder="Pause the intake agent on Fridays." />
         </label>
-        <div className="desk-field-wide portal-actions"><button className="btn" type="submit">Send</button></div>
+        <div className="desk-field-wide portal-actions"><button className="btn" type="submit" disabled={busy}>Send</button></div>
         {sent ? <p className="saved desk-field-wide">{sent}</p> : null}
-        {error ? <p className="desk-status desk-field-wide">{error}</p> : null}
+        {error ? <p className="desk-status desk-field-wide" role="alert">{error}</p> : null}
       </form>
       )}
       <h2>Sent</h2>
@@ -402,15 +419,19 @@ export function RequestsPage() {
   );
 }
 
-function Appointment({ meeting, onCancel }) {
+function Appointment({ meeting, onCancel, onMove, moving }) {
   const state = meetingLabel(meeting);
   const when = meeting.when || whenLabel(meeting.start);
   return (
     <article className="record piece">
       <header className="piece-head"><h2>{when}</h2><span className={'status ' + state.cls}>{state.name}</span></header>
       <p>{callKind(meeting.type)} with your engineer.</p>
-      {onCancel ? (
-        <div className="portal-actions"><button type="button" className="btn-quiet" onClick={() => onCancel(meeting)}>Cancel</button></div>
+      {meeting.video ? <p><a href={meeting.video}>Join the call</a></p> : null}
+      {onCancel || onMove ? (
+        <div className="portal-actions">
+          {onMove ? <button type="button" className="btn-quiet" onClick={() => onMove(meeting)}>{moving ? 'Hide times' : 'Pick another time'}</button> : null}
+          {onCancel ? <button type="button" className="btn-quiet" onClick={() => onCancel(meeting)}>Cancel</button> : null}
+        </div>
       ) : null}
     </article>
   );
@@ -428,6 +449,8 @@ export function MeetingsPage() {
   const [slots, setSlots] = useState(null);
   const [choice, setChoice] = useState(null);
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [moving, setMoving] = useState(null);
 
   const reload = useCallback(async () => {
     if (!me || !me.account) return;
@@ -453,10 +476,12 @@ export function MeetingsPage() {
   }, [me, api, reload]);
 
   async function cancel(meeting) {
+    if (!window.confirm('Cancel this call?')) return;
     setError('');
     try {
       await api('meetings/cancel', { method: 'POST', body: { id: meeting.id } });
       setChoice(null);
+      setMoving(null);
       await reload();
       refresh();
     } catch (err) {
@@ -464,8 +489,39 @@ export function MeetingsPage() {
     }
   }
 
+  async function openMove(meeting) {
+    if (moving && moving.id === meeting.id) {
+      setMoving(null);
+      return;
+    }
+    setError('');
+    try {
+      const type = meeting.type === 'monthly' ? 'monthly' : 'checkpoint';
+      const open = await api('meetings/slots?type=' + type);
+      setMoving({ id: meeting.id, ...open });
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function reschedule(slot) {
+    setError('');
+    setBusy(true);
+    try {
+      await api('meetings/reschedule', { method: 'POST', body: { id: moving.id, start: slot.start } });
+      setMoving(null);
+      await reload();
+      refresh();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function book(slot, type) {
     setError('');
+    setBusy(true);
     try {
       const held = await api('meetings/hold', { method: 'POST', body: { type, start: slot.start } });
       await api('meetings', { method: 'POST', body: { type, start: slot.start, holdToken: held.holdToken } });
@@ -474,6 +530,8 @@ export function MeetingsPage() {
       refresh();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -502,7 +560,21 @@ export function MeetingsPage() {
   return (
     <PageHead title={title} sub={sub}>
       {preview ? <p className="notice">This is a preview. The client books and cancels on their own sign-in.</p> : null}
-      {upcoming.length ? upcoming.map((meeting) => <Appointment key={meeting.id} meeting={meeting} onCancel={preview ? null : cancel} />) : <p className="portal-empty">No call booked.</p>}
+      {upcoming.length ? upcoming.map((meeting) => (
+        <div key={meeting.id}>
+          <Appointment meeting={meeting} onCancel={preview ? null : cancel} onMove={preview ? null : openMove} moving={!!(moving && moving.id === meeting.id)} />
+          {moving && moving.id === meeting.id && !moving.closed && (moving.slots || []).length ? (
+            <div className="book-times" role="group" aria-label="Other times">
+              {moving.slots.slice(0, 8).map((slot) => (
+                <button key={slot.start} type="button" className="book-slot" disabled={busy} onClick={() => reschedule(slot)}>
+                  {slotLabel(slot, moving.timeZone)}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {moving && moving.id === meeting.id && (moving.closed || !(moving.slots || []).length) ? <Empty>{moving.closed || 'No other open times in the next two weeks.'}</Empty> : null}
+        </div>
+      )) : <p className="portal-empty">No call booked.</p>}
       {!preview && type ? (
         <>
           <h2>Pick a time</h2>
@@ -510,7 +582,7 @@ export function MeetingsPage() {
             <div className="notice">
               <p>Book {slotLabel(choice, slots.timeZone)} for this {minutes}-minute {callKind(type).toLowerCase()}?</p>
               <div className="portal-actions">
-                <button className="btn" type="button" onClick={() => book(choice, type)}>Confirm</button>
+                <button className="btn" type="button" disabled={busy} onClick={() => book(choice, type)}>Confirm</button>
                 <button className="btn-quiet" type="button" onClick={() => setChoice(null)}>Not this time</button>
               </div>
             </div>
@@ -531,7 +603,7 @@ export function MeetingsPage() {
           ) : null}
         </>
       ) : (!preview && upcoming.length ? <p className="role-note">Another time opens after this call.</p> : null)}
-      {error ? <p className="desk-status">{error}</p> : null}
+      {error ? <p className="desk-status" role="alert">{error}</p> : null}
       {past.length ? (
         <>
           <h2>Earlier</h2>
@@ -546,11 +618,13 @@ export function BillingPage() {
   const { me, api, refresh } = usePortal();
   const queryStatus = useSearchParams().get('status');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState('');
   const sub = 'The charge that keeps the agents running.';
 
   async function go(path, id) {
     setError('');
+    setNotice('');
     setBusy(id);
     try {
       const data = await api(path, { method: 'POST', body: {} });
@@ -560,6 +634,8 @@ export function BillingPage() {
         return;
       }
       if (data.sample) {
+        setBusy('');
+        setNotice('This practice payment stayed in this browser.');
         refresh();
         return;
       }
@@ -591,7 +667,7 @@ export function BillingPage() {
         <div><dt>Price</dt><dd>{planPrice(status)}</dd></div>
       </dl>
       <p className="bill-note">{note}</p>
-      {preview ? <p className="notice">This is a preview. The client pays on their own sign-in.</p> : (
+      {preview ? <p className="notice">This is a preview. The client pays on their own sign-in.</p> : (!canPay(me) ? <p>An owner pays for this office.</p> : (
       <div className="portal-actions">
         {active ? (
           <button className="btn" type="button" disabled={busy === 'portal'} onClick={() => go('billing/portal', 'portal')}>Manage subscription</button>
@@ -601,7 +677,8 @@ export function BillingPage() {
           <button className="btn" type="button" disabled={busy === 'pay'} onClick={() => go('billing/checkout', 'pay')}>Pay $6,000 to start</button>
         ))}
       </div>
-      )}
+      ))}
+      {notice ? <p className="saved">{notice}</p> : null}
       <h2>Invoices</h2>
       {invoices.length ? (
         <Ledger>
@@ -612,8 +689,26 @@ export function BillingPage() {
           ))}
         </Ledger>
       ) : <Empty>{active ? 'No invoice is on file yet.' : 'No invoice yet. The first one is created when you pay.'}</Empty>}
-      {error ? <p className="desk-status">{error}</p> : null}
+      {error ? <p className="desk-status" role="alert">{error}</p> : null}
     </PageHead>
+  );
+}
+
+function DigestToggle({ on, onChange }) {
+  const [digestOn, setDigestOn] = useState(on);
+  useEffect(() => { setDigestOn(on); }, [on]);
+  return (
+    <label className="portal-check">
+      <input
+        type="checkbox"
+        checked={digestOn}
+        onChange={(event) => {
+          const next = event.target.checked;
+          setDigestOn(next);
+          onChange(next, () => setDigestOn(!next));
+        }}
+      /> Email me the weekly note and the monthly report
+    </label>
   );
 }
 
@@ -621,6 +716,8 @@ export function AccountPage() {
   const { me, api, refresh } = usePortal();
   const [error, setError] = useState('');
   const [inviteError, setInviteError] = useState('');
+  const [inviteNote, setInviteNote] = useState('');
+  const [inviteBusy, setInviteBusy] = useState(false);
   const peopleLine = me && me.account
     ? me.account.office + (me.account.kind ? ', ' + me.account.kind : '') + '. Who can open this account, and who gets the weekly note.'
     : 'Who can open this account, and who gets the weekly note.';
@@ -631,14 +728,16 @@ export function AccountPage() {
   const meMember = (me.account.members || []).find((member) => member.email === me.user.email);
   const receivers = (me.account.members || []).filter((member) => member.digest !== false).map((member) => member.name || member.email);
 
-  async function digest(event) {
+  async function digest(next, revert) {
     try {
-      await api('members/digest', { method: 'POST', body: { digest: event.target.checked } });
+      await api('members/digest', { method: 'POST', body: { digest: next } });
     } catch (err) {
+      revert();
       setError(err.message);
     }
   }
   async function remove(email) {
+    if (!window.confirm('Remove ' + email + ' from this office?')) return;
     setError('');
     try {
       await api('members/remove', { method: 'POST', body: { email } });
@@ -650,12 +749,19 @@ export function AccountPage() {
   async function invite(event) {
     event.preventDefault();
     setInviteError('');
-    const fd = new FormData(event.target);
+    setInviteNote('');
+    setInviteBusy(true);
+    const form = event.target;
+    const fd = new FormData(form);
     try {
-      await api('members', { method: 'POST', body: { name: fd.get('name'), email: fd.get('email') } });
+      const result = await api('members', { method: 'POST', body: { name: fd.get('name'), email: fd.get('email') } });
+      form.reset();
+      setInviteNote(result.mailed === false ? 'Saved, but the email did not send.' : 'Invite sent.');
       refresh();
     } catch (err) {
       setInviteError(err.message);
+    } finally {
+      setInviteBusy(false);
     }
   }
 
@@ -680,11 +786,7 @@ export function AccountPage() {
           ))}
         </Ledger>
       ) : <Empty>No one is on this account yet.</Empty>}
-      {meMember && !preview ? (
-        <label className="portal-check">
-          <input type="checkbox" defaultChecked={meMember.digest !== false} onChange={digest} /> Email me the weekly note and the monthly report
-        </label>
-      ) : null}
+      {meMember && !preview ? <DigestToggle on={meMember.digest !== false} onChange={digest} /> : null}
       {!preview && owner ? (
         <>
           <h2>Invite someone at the firm</h2>
@@ -692,12 +794,13 @@ export function AccountPage() {
           <form className="desk-fields" onSubmit={invite}>
             <label className="desk-field"><span>Name</span><input name="name" /></label>
             <label className="desk-field"><span>Email</span><input type="email" name="email" required /></label>
-            <div className="desk-field-wide portal-actions"><button className="btn" type="submit">Send invite</button></div>
-            {inviteError ? <p className="desk-status desk-field-wide">{inviteError}</p> : null}
+            <div className="desk-field-wide portal-actions"><button className="btn" type="submit" disabled={inviteBusy}>Send invite</button></div>
+            {inviteNote ? <p className="saved desk-field-wide">{inviteNote}</p> : null}
+            {inviteError ? <p className="desk-status desk-field-wide" role="alert">{inviteError}</p> : null}
           </form>
         </>
       ) : null}
-      {error ? <p className="desk-status">{error}</p> : null}
+      {error ? <p className="desk-status" role="alert">{error}</p> : null}
     </PageHead>
   );
 }
@@ -735,7 +838,7 @@ export function ReportsPage() {
 
   if (!me) return <PageHead title="Monthly report" sub={sub}><p className="portal-loading">Loading.</p></PageHead>;
   if (!me.account) return <PageHead title="Monthly report" sub={sub}><NoAccount me={me} /></PageHead>;
-  if (error) return <PageHead title="Monthly report" sub={sub}><p className="desk-status">{error}</p></PageHead>;
+  if (error) return <PageHead title="Monthly report" sub={sub}><p className="desk-status" role="alert">{error}</p></PageHead>;
   if (!reports) return <PageHead title="Monthly report" sub={sub}><p className="portal-loading">Loading.</p></PageHead>;
   const current = reports.find((report) => report.month === month) || reports[0];
   if (!reports.length) {
@@ -766,7 +869,7 @@ export function ReportsPage() {
             <ul className="figures">
               <li><span className="fig">{current.total || 0}</span><p>Updates. <Link href="/portal/activity/">Activity</Link></p></li>
               <li><span className="fig">{counts.did || 0}</span><p>Done.</p></li>
-              <li><span className="fig">{counts.waiting || 0}</span><p>Waiting on you.</p></li>
+              <li><span className="fig">{counts.needs_approval ?? counts.waiting ?? 0}</span><p>Waiting on you.</p></li>
               <li><span className="fig">{(counts.blocked || 0) + (counts.note || 0)}</span><p>Blocked or noted.</p></li>
             </ul>
           ) : <p className="role-note">{(current && current.total) || 0} updates. <Link href="/portal/activity/">Activity</Link></p>}

@@ -22,7 +22,7 @@ CFP daily — [date]
 Invites sent today: N (total M)
 New replies: K   [flag any needing a decision]
 Open leads queued: L
-Days to deadline (1 Aug): D
+Call: open, no fixed abstract date
 ```
 
 If nothing happened, still send one line so the operator knows the pipeline ran:

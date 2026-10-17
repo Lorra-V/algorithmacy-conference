@@ -173,7 +173,7 @@ export default function OAuthAuthorize() {
           </div>
         ))}
         <div className="desk-field-wide"><button className="btn-quiet" type="button" onClick={() => allow('deny')}>Do not allow</button></div>
-        {error ? <p className="desk-status desk-field-wide">{error}</p> : null}
+        {error ? <p className="desk-status desk-field-wide" role="alert">{error}</p> : null}
       </div>
     </>
   );

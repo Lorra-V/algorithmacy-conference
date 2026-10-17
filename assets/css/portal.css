@@ -354,33 +354,6 @@ a.agent-card:focus-visible{
   max-width: 62ch;
 }
 
-.view-switch{
-  display: inline-flex;
-  border: 1px solid var(--rule-strong);
-  border-radius: 4px;
-  overflow: hidden;
-}
-.view-switch button{
-  font-family: var(--sans);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  line-height: 1;
-  color: var(--ink-2);
-  background: transparent;
-  border: 0;
-  padding: 7px 10px;
-  cursor: pointer;
-}
-.view-switch button + button{ box-shadow: inset 1px 0 0 var(--rule); }
-.view-switch button[aria-pressed="true"]{
-  background: var(--ink);
-  color: var(--paper);
-}
-.view-switch button:focus-visible{
-  outline: 2px solid var(--blueback);
-  outline-offset: -2px;
-}
-
 .preview-bar{
   display: flex;
   flex-wrap: wrap;

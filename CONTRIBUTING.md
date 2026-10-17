@@ -98,7 +98,7 @@ To volunteer as a reviewer, open an issue tagged `volunteer-reviewer` with your 
 | Milestone | Date |
 |---|---|
 | Submissions open | now |
-| Submissions close | **2026-08-01** |
+| Submissions close | **Open. No fixed abstract date.** |
 | Reviews complete | 2026-09-15 |
 | Decisions announced | 2026-09-30 |
 | Camera-ready due | 2026-10-15 |

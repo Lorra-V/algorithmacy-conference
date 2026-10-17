@@ -79,7 +79,7 @@ export async function signInWithGithub() {
     return data;
   } catch (e) {
     if (e && e.code === 'auth/operation-not-allowed') {
-      throw new Error('GitHub sign-in is not open yet. Write to roger@algorithmacy.org.');
+      throw new Error('GitHub sign-in is not open yet. Write to topanga@algorithmacy.org.');
     }
     throw new Error(authMessage(e, 'GitHub sign-in did not finish. Try again.'));
   }
@@ -155,7 +155,8 @@ export async function finishEmailLink() {
     back = sessionStorage.getItem('studioOauthReturn') || '';
     sessionStorage.removeItem('studioOauthReturn');
   } catch (e) { /* private mode */ }
-  return { ok: true, href: back.indexOf('/oauth/authorize?') === 0 ? back : '/portal/' };
+  if (back.indexOf('/oauth/authorize?') === 0) return { ok: true, href: back };
+  return { ok: true, href: safeNext(new URLSearchParams(window.location.search).get('next') || '/portal/') };
 }
 
 export async function signOutUser() {

@@ -6,7 +6,7 @@ const AUTH_MESSAGES = {
   'auth/expired-action-code': 'That link has expired or was already used. Request another from the sign-in page.',
   'auth/invalid-email': 'Use the email the invite went to.',
   'auth/missing-email': 'Use the email the invite went to.',
-  'auth/user-disabled': 'This sign-in is turned off. Write to roger@algorithmacy.org.',
+  'auth/user-disabled': 'This sign-in is turned off. Write to topanga@algorithmacy.org.',
   'auth/network-request-failed': 'The sign-in page could not reach the server. Try again.',
   'auth/unauthorized-domain': 'Sign-in is not open on this address. Open algorithmacy.org and request the link again.',
   'auth/operation-not-allowed': 'Google sign-in is not open. Use the email link.',
@@ -43,6 +43,6 @@ export function authMessage(error, fallback) {
 
 export function plainPortalError(text) {
   const raw = String(text || '');
-  if (!raw || looksTechnical(raw)) return 'Something went wrong. Try again, or write to roger@algorithmacy.org.';
+  if (!raw || looksTechnical(raw)) return 'Something went wrong. Try again, or write to topanga@algorithmacy.org.';
   return raw;
 }

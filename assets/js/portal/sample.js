@@ -329,6 +329,15 @@ export function sampleApi(path, opts) {
     meeting.status = 'cancelled';
     return Promise.resolve({ meeting: meeting });
   }
+  if (method === 'POST' && route === 'meetings/reschedule') {
+    const meeting = state.meetings.find(function (row) { return row.id === body.id; });
+    if (!meeting) return Promise.reject(new Error('That call is not on this account.'));
+    if (!body.start) return Promise.reject(new Error('Choose a time.'));
+    meeting.start = body.start;
+    meeting.when = when(body.start);
+    meeting.status = 'booked';
+    return Promise.resolve({ meeting: meeting });
+  }
   if (method === 'GET' && route === 'reports') {
     return Promise.resolve({ reports: state.reports });
   }
@@ -362,7 +371,7 @@ export function sampleApi(path, opts) {
     const email = String(body.email || '').trim().toLowerCase();
     if (!email || email.indexOf('@') === -1) return Promise.reject(new Error('A valid email is required.'));
     state.members.push({ email: email, name: String(body.name || '').trim(), role: 'member', digest: true });
-    return Promise.resolve({ ok: true });
+    return Promise.resolve({ ok: true, mailed: true });
   }
   return Promise.reject(new Error('Not found.'));
 }

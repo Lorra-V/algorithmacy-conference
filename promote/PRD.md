@@ -16,7 +16,7 @@ A second motivation is distribution. The conference benefits when more than one 
 
 ## Goals and success metrics
 
-The program succeeds if it produces qualified submissions through transparent means. Concrete targets for the cycle ending 1 August 2026:
+The program succeeds if it produces qualified submissions through transparent means. The call for papers is open, with no fixed abstract date. Concrete targets for the current cycle:
 
 | Goal | Metric |
 |------|--------|

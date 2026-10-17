@@ -27,7 +27,7 @@ Replies: interested X, declined Y, questions Z
 Needs a decision: [list, or "nothing"]
 Leads queued: L
 Submissions seen: S
-Days to deadline (1 Aug): D
+Call: open, no fixed abstract date
 
 [one-line read on momentum]
 ```

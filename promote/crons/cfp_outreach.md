@@ -75,8 +75,8 @@ The conference runs October 28 to 31, 2026, in Port of Spain, Trinidad
 and Tobago. Review is open, signed, and published, with no anonymized stage,
 and accepted papers publish open access under CC BY 4.0.
 
-We would welcome a submission from you. Abstracts of 300 to 500 words are due
-1 August 2026. You can submit a full paper, a note, a panel, a poster, or a
+We would welcome a submission from you. Abstracts are 300 to 500 words. The
+call is open, with no fixed abstract date. You can submit a full paper, a note, a panel, a poster, or a
 practitioner report, in any of three ways:
   - Web form, no GitHub needed: https://algorithmacy.org/submit
   - Through an AI agent via the conference MCP server
@@ -126,6 +126,6 @@ Check for replies to prior invitations and log substantive ones to `state/cfp_ou
 
 ## Pacing
 
-A modest, verified daily number beats a blast. Better five well-matched, correctly addressed invitations than forty guesses. The deadline is 1 August 2026; pace the field accordingly.
+A modest, verified daily number beats a blast. Better five well-matched, correctly addressed invitations than forty guesses. The call is open, with no fixed abstract date; keep the pace modest.
 
 *Last updated: 2026-06-06*

@@ -49,7 +49,7 @@ take it from there.
 4. Open a pull request against `main`, titled `[Type] [TR.0X] Your title`
 
 **A few things to know:**
-- **Deadline:** 1 August 2026
+- **Deadline:** the call is open, with no fixed abstract date
 - **Open review:** your submission and all reviews are public on the repo from
   the start, and reviewers sign their assessments — no anonymized stage
 - Accepted **full papers** are published by Hult International Business School

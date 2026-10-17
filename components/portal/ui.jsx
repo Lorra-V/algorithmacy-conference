@@ -143,14 +143,24 @@ export function FirstSession({ account }) {
 
 export function ConnectionPanel({ lead }) {
   const [url, setUrl] = useState('https://algorithmacy.org/api/studio-mcp');
+  const [copied, setCopied] = useState(false);
   useEffect(() => {
     setUrl(window.location.origin + '/api/studio-mcp');
   }, []);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+    } catch (e) {
+      setCopied(false);
+    }
+  }
   return (
     <section className="portal-section">
       <h2>Connect an assistant</h2>
       <p className="role-note">{lead}</p>
       <p className="key-once">{url}</p>
+      <div className="portal-actions"><button type="button" className="btn-quiet" onClick={copy}>{copied ? 'Copied' : 'Copy'}</button></div>
       <p className="role-note">Paste that URL into Claude, Cursor, Grok, Muse, or OpenClaw. It will ask you to sign in. There is no key to copy.</p>
     </section>
   );

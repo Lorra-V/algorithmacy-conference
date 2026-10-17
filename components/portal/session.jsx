@@ -219,18 +219,6 @@ export function PortalSession({ children }) {
     setStatus('ready');
   }, []);
 
-  const markProfile = useCallback(async () => {
-    await call('admin/engineers/profile', { method: 'POST', body: {} });
-    setViewer((current) => {
-      if (!current || !current.user) return current;
-      return {
-        ...current,
-        user: { ...current.user, engineerProfile: 'opened', engineerTask: null },
-      };
-    });
-    setTick((value) => value + 1);
-  }, [call]);
-
   const value = useMemo(() => ({
     status,
     me: presented,
@@ -247,9 +235,8 @@ export function PortalSession({ children }) {
     openClientPreview,
     resetOffice,
     finishMfa,
-    markProfile,
     signOut: signOutUser,
-  }), [status, presented, viewer, mode, mfa, error, call, refresh, revision, setView, openSample, choosePreview, openClientPreview, resetOffice, finishMfa, markProfile]);
+  }), [status, presented, viewer, mode, mfa, error, call, refresh, revision, setView, openSample, choosePreview, openClientPreview, resetOffice, finishMfa]);
 
   return <PortalContext.Provider value={value}>{children}</PortalContext.Provider>;
 }

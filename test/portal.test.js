@@ -2,10 +2,13 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { generateSlots, zonedTimeToUtc, DEFAULT_AVAILABILITY } = require('../lib/portal/slots');
 const { buildIcs } = require('../lib/portal/ics');
+const fs = require('node:fs');
+const path = require('node:path');
 const {
   validateBook, validateEvent, validateSteps, validateAgent, validateAvailability, validateAccountCreate,
+  approvalFields, assertPendingDecision, countEvents,
 } = require('../lib/portal/validate');
-const { routeParts } = require('../lib/portal/http');
+const { routeParts, safePortalNext, finishSignInUrl, requirePayer, bookedMessage } = require('../lib/portal/http');
 const { previewAccess } = require('../lib/portal/preview');
 const { slug, engineerInviteText } = require('../lib/portal/engineer');
 
@@ -192,6 +195,66 @@ test('an engineer invite names the photo file and Your Engineers', () => {
   assert.match(text, /already on the Studio page/);
   assert.match(text, /authenticator/);
   assert.doesNotMatch(text, /sk_/);
+});
+
+test('an approval stores the event detail as the draft', () => {
+  const fields = approvalFields({ summary: 'Send the reminder', detail: 'Ada, the letter is ready.' });
+  assert.equal(fields.summary, 'Send the reminder');
+  assert.equal(fields.draft, 'Ada, the letter is ready.');
+  assert.equal(fields.status, 'pending');
+  assert.equal(approvalFields({ summary: 'Send the reminder' }).draft, '');
+});
+
+test('a second decision is rejected', () => {
+  assert.doesNotThrow(() => assertPendingDecision('pending'));
+  assert.throws(() => assertPendingDecision('approved'), { status: 409, message: 'That decision is already recorded.' });
+  assert.throws(() => assertPendingDecision('declined'), { status: 409 });
+});
+
+test('a member cannot pay', () => {
+  const member = { role: 'member' };
+  const owner = { role: 'owner' };
+  const user = { isAdmin: false };
+  assert.throws(() => requirePayer(member, user), { status: 403, message: 'An owner pays.' });
+  assert.throws(() => requirePayer(member, user, 'An owner manages billing.'), { status: 403, message: 'An owner manages billing.' });
+  assert.doesNotThrow(() => requirePayer(owner, user));
+  assert.doesNotThrow(() => requirePayer(member, { isAdmin: true }));
+});
+
+test('a report counts needs_approval as waiting on you', () => {
+  const counts = countEvents([
+    { type: 'did' },
+    { type: 'needs_approval' },
+    { type: 'needs_approval' },
+    { type: 'note' },
+    { type: 'waiting' },
+  ]);
+  assert.equal(counts.needs_approval, 2);
+  assert.equal(counts.did, 1);
+  assert.equal(counts.waiting, undefined);
+});
+
+test('a failed confirmation email is not described as on its way', () => {
+  const failed = bookedMessage(false);
+  const sent = bookedMessage(true);
+  assert.match(failed, /did not send/);
+  assert.doesNotMatch(failed, /on its way/);
+  assert.match(sent, /on its way/);
+  const book = fs.readFileSync(path.join(__dirname, '../assets/js/book.js'), 'utf8');
+  assert.ok(book.includes(failed));
+  assert.ok(book.includes(sent));
+});
+
+test('safe next stays inside the portal and the finish url keeps it', () => {
+  assert.equal(safePortalNext('https://evil.example/portal/'), '/portal/');
+  assert.equal(safePortalNext('//evil.example'), '/portal/');
+  assert.equal(safePortalNext('/book/'), '/portal/');
+  assert.equal(safePortalNext('/portal/reports/?month=2026-09'), '/portal/reports/?month=2026-09');
+  const kept = finishSignInUrl('/portal/reports/?month=2026-09');
+  assert.match(kept, /\/portal\/login\/finish\/\?next=/);
+  assert.match(decodeURIComponent(kept), /\/portal\/reports\/\?month=2026-09/);
+  assert.equal(finishSignInUrl('https://evil.example'), finishSignInUrl('/portal/'));
+  assert.doesNotMatch(finishSignInUrl('https://evil.example'), /next=/);
 });
 
 test('route parts come from the query or the url', () => {
