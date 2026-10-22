@@ -100,6 +100,11 @@
     gap: 12px;
     flex: 1;
   }
+  /* Increased padding for organizer cards */
+  #organizers .kcard{
+    padding: clamp(24px,2.4vw,32px);
+    gap: 12px;
+  }
   .kcard .knum{ 
     font-family: var(--font-mono); 
     font-size: 10px; 
