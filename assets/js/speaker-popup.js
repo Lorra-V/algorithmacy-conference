@@ -74,7 +74,7 @@ const speakerData = {
   'eric-elder': {
     name: 'Eric T. Elder',
     title: 'Critical Research, AI and Animation',
-    bio: 'Eric T. Elder is an animation, gaming and XR veteran with over 30 years' experience, known for work on The Simpsons and leading game development education initiatives in Los Angeles.',
+    bio: 'Eric T. Elder is an animation, gaming and XR veteran with over 30 years\' experience, known for work on The Simpsons and leading game development education initiatives in Los Angeles.',
     photo: '/images/eric-elder.jpg',
     linkedin: 'https://www.linkedin.com/in/erictelder/'
   },
