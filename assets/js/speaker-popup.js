@@ -49,6 +49,62 @@ const speakerData = {
     bio: 'HR and employment law specialist with 25+ years across the Caribbean, US and UK, helping organisations navigate people, ethical AI adoption and the future of work. Founder & CEO, The HR Horizon.',
     photo: '/images/speakers/mellissa-lezama.jpg',
     linkedin: 'https://www.linkedin.com/in/mellissa-lezama'
+  },
+  'analise-kandasammy': {
+    name: 'Analise Kandasammy',
+    title: 'Critical Research, AI and Animation',
+    bio: 'Analise Kandasammy is a human-centred futurist, risk strategist and author of Human, Still, helping people protect focus, judgment and clarity while navigating change in an AI-shaped world.',
+    photo: '/images/analise-kandasammy.jpg',
+    linkedin: 'https://www.linkedin.com/in/analisekandasammy'
+  },
+  'christopher-din-chong': {
+    name: 'Christopher Din Chong',
+    title: 'Critical Research, AI and Animation',
+    bio: 'Christopher Din Chong is a Trinidad and Tobago filmmaker, AI Solutions Developer and youth advocate, combining storytelling, emerging technology and mentorship to advance creativity, entrepreneurship and social impact.',
+    photo: '/images/christopher-din-chong.jpg',
+    linkedin: 'https://www.linkedin.com/in/christopher-din-chong'
+  },
+  'kevin-fleary': {
+    name: 'Dr. Kevin Fleary',
+    title: 'Learning and Agency in an Algorithmic World',
+    bio: 'Dr. Kevin Fleary is a management scientist, UWI lecturer and business transformation specialist, advancing AI-enabled learning, entrepreneurial capabilities and Caribbean enterprise competitiveness through research, innovation and strategic partnerships.',
+    photo: '/images/kevin-fleary.jpg',
+    linkedin: null
+  },
+  'eric-elder': {
+    name: 'Eric T. Elder',
+    title: 'Critical Research, AI and Animation',
+    bio: 'Eric T. Elder is an animation, gaming and XR veteran with over 30 years' experience, known for work on The Simpsons and leading game development education initiatives in Los Angeles.',
+    photo: '/images/eric-elder.jpg',
+    linkedin: 'https://www.linkedin.com/in/erictelder/'
+  },
+  'jason-arthur': {
+    name: 'Jason Arthur',
+    title: 'Building Organisations for the AI Era',
+    bio: 'Jason Arthur is a Tobago entrepreneur and AI consultant who builds practical business systems, automates operations and helps business owners use AI to improve productivity while retaining control.',
+    photo: '/images/jason-arthur.jpg',
+    linkedin: 'https://www.linkedin.com/in/jasonarthurconsulting/'
+  },
+  'steve-witmer': {
+    name: 'Steve Witmer',
+    title: 'Building Organisations for the AI Era',
+    bio: 'Steve Witmer is a product designer, design technologist and entrepreneur building AI-native software for film production and agriculture, with a focus on intelligent interfaces, agentic systems and human-AI interaction.',
+    photo: '/images/steve-witmer.jpg',
+    linkedin: 'https://www.linkedin.com/in/stephenwitmer'
+  },
+  'anisa-oliviel': {
+    name: 'Anisa Oliviel',
+    title: 'FutureTT: A Developmental Pathway',
+    bio: 'Anisa Oliviel is an Executive Director of CEI, Director of The Rose Foundation and peace ambassador, bringing nearly two decades of voluntary-sector experience to youth development, education and equity.',
+    photo: '/images/anisa-oliviel.jpg',
+    linkedin: 'https://www.linkedin.com/in/anisa-oliviel-385638244/'
+  },
+  'marcia-belgrove-panelist': {
+    name: 'Dr Marcia Belgrove',
+    title: 'FutureTT: A Developmental Pathway',
+    bio: 'Dr. Marcia Mc Clashie Belgrove is Co-founder of The Rose Foundation and CEI, a community development and social justice advocate, and former adviser to two Trinidad and Tobago Prime Ministers.',
+    photo: '/images/marcia-belgrove.jpg',
+    linkedin: 'https://www.linkedin.com/in/marcia-belgrove-305596242/'
   }
 };
 
@@ -74,7 +130,14 @@ function openSpeakerModal(speakerId) {
   modalName.textContent = speaker.name;
   modalTitle.textContent = speaker.title;
   modalBio.textContent = speaker.bio;
-  modalLinkedin.href = speaker.linkedin;
+  
+  // Handle LinkedIn link - show only if available
+  if (speaker.linkedin) {
+    modalLinkedin.href = speaker.linkedin;
+    modalLinkedin.style.display = 'inline-flex';
+  } else {
+    modalLinkedin.style.display = 'none';
+  }
 
   // Show modal
   modal.classList.add('is-open');
