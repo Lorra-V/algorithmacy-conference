@@ -76,6 +76,10 @@
 #organizers .kcard {
   padding: clamp(24px, 2.8vw, 36px);
 }
+/* Matching padding for panelist cards */
+#panelist-grid .kcard {
+  padding: clamp(24px, 2.8vw, 36px);
+}
 </style>
 </head>
 <body>
@@ -341,10 +345,10 @@
 
       <!-- panelists sub-section -->
       <div class="sec-head" style="margin-top: 56px;">
-        <h3 style="font-size: 24px; font-weight: 600; margin: 0;">Panelists</h3>
+        <h2>Panelists</h2>
         <span class="meta">panel participants</span>
       </div>
-      <div class="kgrid">
+      <div class="kgrid" id="panelist-grid">
         <article class="kcard is-clickable" role="button" tabindex="0" data-speaker-id="analise-kandasammy">
           <span class="kface" style="--photo: url('/images/analise-kandasammy.jpg')" aria-hidden="true"></span>
           <span class="kname">Analise Kandasammy</span>
