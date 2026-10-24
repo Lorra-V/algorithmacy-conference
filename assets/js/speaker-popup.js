@@ -69,7 +69,7 @@ const speakerData = {
     title: 'Learning and Agency in an Algorithmic World',
     bio: 'Dr. Kevin Fleary is a management scientist, UWI lecturer and business transformation specialist, advancing AI-enabled learning, entrepreneurial capabilities and Caribbean enterprise competitiveness through research, innovation and strategic partnerships.',
     photo: '/images/kevin-fleary.jpg',
-    linkedin: null
+    linkedin: 'https://www.linkedin.com/in/kevin-fleary-5bb122a1/'
   },
   'eric-elder': {
     name: 'Eric T. Elder',
