@@ -1,0 +1,81 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Algorithmacy Studio public facts",
+    "version": "2026-10-25",
+    "description": "Read-only files an agent can fetch with no key. Booking is a web form. The signed-in MCP is separate and cannot charge a card."
+  },
+  "servers": [{ "url": "https://algorithmacy.org" }],
+  "paths": {
+    "/studio/facts.json": {
+      "get": {
+        "operationId": "getStudioFacts",
+        "summary": "Structured Studio profile, comparison, pricing, hardware, and booking parameters.",
+        "responses": {
+          "200": {
+            "description": "JSON facts",
+            "content": { "application/json": { "schema": { "type": "object" } } }
+          }
+        }
+      }
+    },
+    "/studio/llm-harness.md": {
+      "get": {
+        "operationId": "getStudioHarness",
+        "summary": "Full decision-guide prompt, including the facts for an agent that cannot browse.",
+        "responses": {
+          "200": {
+            "description": "Markdown prompt",
+            "content": { "text/markdown": { "schema": { "type": "string" } } }
+          }
+        }
+      }
+    },
+    "/studio/prompt.txt": {
+      "get": {
+        "operationId": "getStudioPrompt",
+        "summary": "Same harness as plain text.",
+        "responses": {
+          "200": {
+            "description": "Plain text prompt",
+            "content": { "text/plain": { "schema": { "type": "string" } } }
+          }
+        }
+      }
+    },
+    "/llms.txt": {
+      "get": {
+        "operationId": "getLlmsTxt",
+        "summary": "Short index of Algorithmacy and Algorithmacy Studio.",
+        "responses": { "200": { "description": "llms.txt" } }
+      }
+    },
+    "/llms-full.txt": {
+      "get": {
+        "operationId": "getLlmsFull",
+        "summary": "Long index, including the Studio decision harness.",
+        "responses": { "200": { "description": "llms-full.txt" } }
+      }
+    },
+    "/book": {
+      "get": {
+        "operationId": "openBookingPage",
+        "summary": "20-minute call form. Query parameters prefill the fields.",
+        "parameters": [
+          { "name": "setting", "in": "query", "schema": { "type": "string", "enum": ["office", "home"] } },
+          { "name": "org", "in": "query", "schema": { "type": "string" } },
+          { "name": "software", "in": "query", "schema": { "type": "string" } },
+          { "name": "users", "in": "query", "schema": { "type": "string" } },
+          { "name": "offer", "in": "query", "schema": { "type": "string", "enum": ["first-10", "standard"] } },
+          { "name": "priority", "in": "query", "schema": { "type": "string", "enum": ["privacy", "cost", "workflow"] } },
+          { "name": "tier", "in": "query", "schema": { "type": "string", "enum": ["home", "office", "practice"] } },
+          { "name": "summary", "in": "query", "schema": { "type": "string" } },
+          { "name": "name", "in": "query", "schema": { "type": "string" } },
+          { "name": "email", "in": "query", "schema": { "type": "string" } },
+          { "name": "notes", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Booking page" } }
+      }
+    }
+  }
+}

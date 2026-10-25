@@ -1,57 +1,30 @@
-# Algorithmacy Conference 2026
+# Algorithmacy
 
-> The first global conference on **algorithmacy** — the communication competency through which a worker coordinates with another human party *through* an algorithmic third party. Held in Port of Spain, Trinidad & Tobago, October 28–31, 2026. Open review, open access, public-pull-request intake.
+> Algorithmacy is two programs on one site. The conference studies algorithmacy, the competency of coordinating with another person through an algorithmic third party, in Port of Spain, Trinidad and Tobago, 28 to 31 October 2026. Algorithmacy Studio installs a local model on a computer a small office or a home owns, and maintains it.
 
-Algorithmacy names the worker-level capacity behind triadic, algorithmically-mediated coordination: an algorithm sits between two human parties, acts on inputs from both, and pursues its own objectives. The conference convenes scholars, practitioners, educators, and worker advocates around what algorithmacy is, how it develops and is measured, how it distributes across populations, and what training, certification, and labor protection look like once the construct is in place. Hosted by the Caribbean Emergence Institute with Animae Caribe as Trinidad partner. Sponsored by the Rose Foundation, the Caribbean Emergence Initiative, and Hult International Business School (Boston), which organizes and publishes accepted full papers after peer review.
+Studio's decision guide works for an AI tool that can fetch URLs and for one that cannot. The copied prompt and the files below carry the same facts: three ways to run AI, hardware tiers, the first 10 free-labor offer, and a booking link the tool can fill in.
 
-## Key pages
-- [Home](https://algorithmacy.org/): overview, program, keynotes, and the five thematic tracks
-- [Submit a paper](https://algorithmacy.org/submit): submit via a web form (no GitHub needed), via an AI agent (MCP), or via a GitHub pull request
-- [Logistics](https://algorithmacy.org/logistics): venue, getting there, accommodation, visas, registration, travel support
-- [Studio](https://algorithmacy.org/studio): an engineer sets up agents for the chores of an owner-run office and manages them. $5,000 to set up, $1,000 a month, month to month after a day-30 checkpoint. Law firms first. Book a call at [algorithmacy.org/book](https://algorithmacy.org/book). Clients sign in at [algorithmacy.org/portal](https://algorithmacy.org/portal). An agent starts at [https://algorithmacy.org/studio/AGENT.md](https://algorithmacy.org/studio/AGENT.md).
-- [Tracks & questions](https://algorithmacy.org/#tracks): the five thematic tracks and their guiding questions
-- [Program / schedule](https://algorithmacy.org/#schedule): Wed 28 Oct (press launch, keynotes, critical research at IMAX Cinema), Thu 29 Oct (organisations and investment at IMAX Cinema), Fri 30 Oct (FutureTT panel and hackathon), Sat 31 Oct (La Brea Pitch Lake visit and festival closing celebration)
-- [Keynotes](https://algorithmacy.org/#keynotes): keynote speakers
+## Studio
 
-## Call for papers
-- Submission deadline: the call is open, with no fixed abstract date
-- Submission types: full paper (6–8 pp), research note (2–3 pp), panel (3–4 participants), poster (visual + 1-page abstract), practitioner report (2–4 pp)
-- Tracks: TR.01 Coordination & Mediation · TR.02 Algorithmic Management · TR.03 Platform Labor & Worker Voice · TR.04 Trust, Opacity & Governance · TR.05 Methods, Lineage & Practice
-- Format: APA 7 · open access · review is open, signed, published, and timestamped (no anonymized stage)
-- Intake: open a pull request adding `submissions/<handle>.md` (a 300–500-word abstract + outline) to the public repository; the PR timestamp is the authorship-priority record
-- Awards: Founders' Paper Award · Pitch Lake Prize (early career) · FutureTT Practitioner Award
+- [Studio](https://algorithmacy.org/studio): the offer for a small office or a home. A local model on a computer the client owns.
+- [LLM decision harness](https://algorithmacy.org/studio/llm-harness.md): the full prompt. An AI tool with no web access can run the decision from this file alone.
+- [Plain prompt](https://algorithmacy.org/studio/prompt.txt): the same harness as plain text.
+- [Facts JSON](https://algorithmacy.org/studio/facts.json): profile, 3-way comparison, hardware tiers, pricing, the first 10 offer, HIPAA boundaries, engineers, MCP endpoints, and the /book query parameters.
+- [Full text](https://algorithmacy.org/llms-full.txt): conference reference plus the Studio offering and the full decision harness.
+- [Book a call](https://algorithmacy.org/book): a 20-minute call. Query parameters such as setting, org, software, users, offer, summary, name, email, and notes prefill the form.
+- [Studio MCP](https://algorithmacy.org/api/studio-mcp): signed-in connector for an office that already has an account. It cannot charge a card.
+- [Onboarding MCP](https://algorithmacy.org/api/onboarding-mcp): no key. Books a discovery call or explains the offer. A call is not an account.
+- [Agent card](https://algorithmacy.org/.well-known/agent.json): discovery card for the public files, the MCP endpoints, and booking.
 
-## Submitting via an agent (MCP) or web form — no GitHub account required
-If you are an AI agent submitting on a researcher's behalf, you do not need GitHub access. Three intake paths exist:
-- **MCP server** (agent-to-agent): connect to the remote MCP server at `https://algorithmacy.org/api/mcp` (Streamable HTTP, stateless JSON-RPC). Tools: `list_tracks` (tracks, types, field requirements) and `submit_abstract` (title, authors, email, type, track, keywords, abstract 300–500 words, outline, bios, optional contribution & coi). `submit_abstract` emails a one-click sign-off link to the author's contact address and returns no token — the agent does the work, but **the human author must click the emailed link to actually open the pull request**. Nothing is published without that human sign-off.
-- **HTTP API**: `POST https://algorithmacy.org/api/submit` with a JSON body of the same fields; the author then confirms via the emailed link.
-- **GitHub pull request**: open a PR adding `submissions/<handle>.md` directly (for agents that already have the author's GitHub access).
-In every path the submission and all reviews are public, and the pull-request timestamp is the authorship-priority record.
+## Conference
 
-## Keynotes
-- Antonio Mele — Economics, London School of Economics
-- Samuel Fosso Wamba — Information Systems & Data Science, TBS Education
-- Thomas K. F. Chiu — AI & STEM Education, The Chinese University of Hong Kong
-- Antonio Scala — Complex networks, CNR Institute for Complex Systems (Rome)
-
-## Repository & more
-- [GitHub repository](https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference): submissions and open reviews live here as pull requests
-- [Full text for agents](https://algorithmacy.org/llms-full.txt): the complete conference details in one file
-
-
-## Featured speakers
-- Sarah Witmer — Digital cultures, University of Iowa. Chairs the Critical Cultural Research special session.
-- Dr. Uohna Thiessen — AI/ML Strategy & Education, Break Through Tech AI (Cornell Tech). Chairs the Algorithmic Literacy special session.
-- 10 featured-speaker slots; more to be announced. To be considered, email rhunt@bentley.edu.
-
-## Special sessions
-- Digital Sovereignty — chaired by Samuel Fosso Wamba (TBS Education); accepting submissions.
-- Algorithmic Literacy — chaired by Dr. Uohna Thiessen (Break Through Tech AI, Cornell Tech); accepting submissions.
-- Critical Cultural Research — chaired by Sarah Witmer (University of Iowa); bringing algorithmacy into critical cultural analysis of AI, apps, and platforms; accepting submissions.
-- Further special-session slots are open. Propose a themed session and serve as its committee chair — email rhunt@bentley.edu.
-
-## Organizers
-- Anusha Vissapragada, Roger Hunt, Tamsen Webster, Cat Pierson, Sarah Witmer, Amanda Gentile McEwen, Lorraine Villaroel (AI and Transformation Lead, Caribbean Emergence Institute)
+- [Home](https://algorithmacy.org/): program, keynotes, and the five tracks. Port of Spain, 28 to 31 October 2026.
+- [Submit a paper](https://algorithmacy.org/submit): web form, or the conference MCP, or a GitHub pull request. The human author confirms by email before a pull request opens.
+- [Conference MCP](https://algorithmacy.org/api/mcp): paper intake only. Do not use it for Studio.
+- [Logistics](https://algorithmacy.org/logistics): venue, travel, visas, registration.
+- [Repository](https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference): submissions and open reviews live here as pull requests.
 
 ## Contact
-- Roger Hunt — rhunt@bentley.edu
+
+- Studio: topanga@algorithmacy.org
+- Conference: Roger Hunt, rhunt@bentley.edu

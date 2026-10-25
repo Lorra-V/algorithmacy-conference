@@ -624,7 +624,7 @@ a.visually-hidden:focus-visible{
   color: var(--ink);
 }
 .book-form label.wide, .desk-field-wide{ grid-column: 1 / -1; }
-.book-form input, .desk-fields input, .desk-fields textarea{
+.book-form input, .book-form textarea, .desk-fields input, .desk-fields textarea{
   font-family: var(--sans);
   font-size: 1rem;
   font-weight: 400;
@@ -635,8 +635,8 @@ a.visually-hidden:focus-visible{
   padding: 12px 14px;
   width: 100%;
 }
-.desk-fields textarea{ resize: vertical; min-height: 7.5rem; line-height: 1.5; }
-.book-form input:focus, .desk-fields input:focus, .desk-fields textarea:focus{
+.desk-fields textarea, .book-form textarea{ resize: vertical; min-height: 7.5rem; line-height: 1.5; }
+.book-form input:focus, .book-form textarea:focus, .desk-fields input:focus, .desk-fields textarea:focus{
   outline: 2px solid var(--blueback);
   outline-offset: 0;
   border-color: var(--blueback);
@@ -758,3 +758,77 @@ a.visually-hidden:focus-visible{
 .page-body{ padding: 0 0 40px; }
 .page-body .book-panel{ margin-top: 0; }
 .page-body > .small{ margin-top: 28px; }
+
+/* Copy-prompt bar. Sits under the header, before the essay. */
+.prompt-bar{
+  margin: 22px 0 0;
+  padding: 14px;
+  background: var(--paper-2);
+  border: 1px solid var(--ink);
+  border-radius: 6px;
+}
+.prompt-copy{
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: var(--sans);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #fff;
+  background: var(--blueback);
+  border: 1px solid var(--blueback);
+  border-radius: 4px;
+  padding: 16px 18px;
+  cursor: pointer;
+}
+.prompt-copy:hover{ background: var(--blueback-deep); border-color: var(--blueback-deep); color: #fff; }
+.prompt-copy:focus-visible{ outline: 2px solid var(--ink); outline-offset: 3px; }
+.prompt-copy.is-copied{ background: var(--ink); border-color: var(--ink); }
+.prompt-meta{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 18px;
+  margin-top: 10px;
+  font-family: var(--sans);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+.prompt-hint, .prompt-status{ margin: 0; color: var(--ink-2); }
+.prompt-status:empty{ display: none; }
+.prompt-meta a{ font-weight: 600; }
+.prompt-bar + .lead{ padding-top: 36px; }
+@media (min-width: 1100px){
+  .prompt-bar + .lead{ padding-top: 40px; }
+}
+@media (max-width: 600px){
+  .prompt-bar{ margin-top: 16px; padding: 12px; }
+  .prompt-copy{ font-size: 1rem; padding: 14px 14px; }
+  .prompt-meta{ font-size: 0.8125rem; }
+}
+
+/* Details carried in from a prefilled booking link. */
+.book-brought{
+  margin: 0 0 28px;
+  padding: 16px 16px 4px;
+  border: 1px solid var(--ink);
+  border-radius: 6px;
+  background: var(--tint);
+}
+.book-brought h2{
+  font-size: 1.35rem;
+  line-height: 1.25;
+  margin-bottom: 8px;
+}
+.book-brought .book-facts{
+  list-style: none;
+  padding: 0;
+  margin: 0 0 14px;
+  font-family: var(--sans);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+.book-brought .book-facts li + li{ margin-top: 4px; }
+.book-brought .book-facts b{ color: var(--ink); font-weight: 600; }

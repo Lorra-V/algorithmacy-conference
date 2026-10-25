@@ -16,6 +16,7 @@ export const COPY_DIRS = [
   'privacy',
   'terms',
   'cookies',
+  '.well-known',
 ];
 
 export const COPY_FILES = [
