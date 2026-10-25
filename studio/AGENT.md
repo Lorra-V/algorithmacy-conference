@@ -6,6 +6,16 @@ This file is for an agent helping a person who is new to Algorithmacy Studio, or
 https://algorithmacy.org/studio/AGENT.md
 ```
 
+## What Studio is
+
+Algorithmacy Studio installs a local model on a computer the client owns, in a small office or a home, and maintains it. The work is the same shape as putting in a water heater: place the computer, hook up the daily jobs, and come back when something breaks.
+
+Offices are about 5 to 50 people. Dental practices and clinics first, then law firms, CPA and real estate offices, and other owner-run businesses. Homes are in scope too.
+
+The first 10 home and office installs: free covers our labor for the installation and ongoing maintenance. It does not include the computer or equipment. The client supplies their own computer, or buys it at the store price. Free maintenance for life is in exchange for their continued endorsement and testimonial. Restrictions apply. Free covers setup and maintenance labor, not hardware or third-party bills, and free maintenance continues for as long as the endorsement stays up and within the agreed scope of jobs. After those 10, the guide is $5,000 to set up and $1,000 a month. A given job can cost more or less. For a normal small office or a home, that guide covers it.
+
+Someone at the office or the home approves a new kind of message before it goes out. The model runs on their machine. A dentist still does the clinical work. A lawyer still does the legal work. A call is not a contract.
+
 The conference on this site is a separate program. Do not use `https://algorithmacy.org/api/mcp` for Studio. That connector submits papers.
 
 ## If you speak MCP
@@ -21,7 +31,7 @@ POST JSON-RPC, the same shape as any remote MCP server. Tools:
 - `studio_offer` — what Studio is, the price, and that a call is not a contract.
 - `list_discovery_times` — open times for a 20-minute call.
 - `book_discovery` — book one of those times. Fields: `name`, `email`, `business`, `start`, and an optional `note`.
-- `write_studio` — email the studio instead of booking. Fields: `intent` (`office` or `other`), `office` when the intent is `office`, `name`, `business`, `email`, `message`, optional `phone`, and `terms: true` only after the person agrees to the Terms of Service and Privacy Policy. Nothing is booked.
+- `write_studio` — email the studio instead of booking. Fields: `intent` (`office` or `other`), `office` when the intent is `office`, `name`, `business`, `email`, `message`, optional `phone`, and `terms: true` only after the person agrees to the Terms of Service and Privacy Policy. Nothing is booked. `office` values on the page are `dental practice or clinic`, `law firm`, `home or household`, `CPA or real estate office`, and `owner-run business`. Older values still accepted: `dental practice or med spa`, `real estate office`, `CPA firm`, `owner-run office`.
 - `engineer_application` — the pull request that applies to be an engineer. Optional `name`, used only for the photo file.
 
 ## If you only have fetch or curl

@@ -206,6 +206,33 @@ test('upstream failure tells the visitor to email the studio', async () => {
   }
 });
 
+test('accepts a home and still accepts an older office value', async () => {
+  let captured;
+  const restore = installFetch(async (url, opts) => {
+    captured = JSON.parse(opts.body);
+    return new Response(null, { status: 204 });
+  });
+  try {
+    const home = await post(validBody({
+      office: 'home or household',
+      email: 'home@example.com',
+      business: 'Chen household',
+    }), { ip: '203.0.113.70' });
+    assert.equal(home.body.ok, true);
+    assert.equal(captured.subject, 'Studio inquiry: Chen household (home or household)');
+    assert.match(captured.text, /Office type: home or household/);
+
+    const older = await post(validBody({
+      office: 'dental practice or med spa',
+      email: 'older@example.com',
+      business: 'Older Practice',
+    }), { ip: '203.0.113.71' });
+    assert.equal(older.body.ok, true);
+  } finally {
+    restore();
+  }
+});
+
 test('other work uses that office type in the subject', async () => {
   let captured;
   const restore = installFetch(async (url, opts) => {

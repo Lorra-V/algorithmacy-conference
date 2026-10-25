@@ -20,7 +20,7 @@
 
   function office() {
     var picked = form.querySelector('input[name="office"]:checked');
-    return picked ? picked.value : "owner-run office";
+    return picked ? picked.value : "dental practice or clinic";
   }
 
   function fieldValue(id) {
@@ -54,14 +54,14 @@
     line.textContent =
       officeLabel() +
       (message ? ". Work: " + message + "." : ".") +
-      " $5,000 to set up, then $1,000 a month.";
+      " The first 10 home and office installs: free labor to install and maintain. Equipment not included. Continued endorsement and testimonial. Restrictions apply. After that, $5,000 to set up, then $1,000 a month.";
   }
 
   function applyIntent() {
     var other = intent() === "other";
     if (offices) offices.disabled = other;
     if (messageLabel) messageLabel.textContent = "The chore or message";
-    messageInput.placeholder = other ? "What you want designed or built" : "Intake, follow-ups, chasing documents";
+    messageInput.placeholder = other ? "What you want designed or built" : "New patient replies, missing records, household files";
     writeLine();
   }
 
@@ -168,11 +168,11 @@
       return;
     }
     var month = people * hours * rate * 52 / 12;
-    var line = "The chores are about " + money(month) + " a month of staff time. Studio is $1,000 a month after the $5,000 setup.";
+    var line = "The chores are about " + money(month) + " a month of staff time. After the first 10, Studio is $1,000 a month after the $5,000 setup. The first 10: free labor to install and maintain, equipment not included, for your continued endorsement and testimonial. Restrictions apply.";
     if (month < 1000) {
       line += " That is under the monthly fee, so the reason to look at this is the time, not a cash saving.";
     }
-    line += " It is an estimate, not a promise that the firm will save that amount.";
+    line += " It is an estimate, not a promise that you will save that amount.";
     roiOut.textContent = line;
   }
   if (roi) {

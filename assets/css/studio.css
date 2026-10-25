@@ -452,6 +452,8 @@ a.visually-hidden:focus-visible{
   font-variant-numeric: lining-nums;
 }
 .price .amt small{ font-size: 1.125rem; font-weight: 400; color: var(--ink-2); letter-spacing: 0; margin-left: 0.3em; }
+.price .amt + .amt{ margin-top: 14px; }
+.price h3{ font-size: 1rem; font-family: var(--sans); font-weight: 500; margin: 0 0 10px; }
 .price ul{ margin: 16px 0 0; padding: 0 0 0 1.1em; color: var(--ink-2); font-size: 1rem; line-height: 1.5; }
 .price li + li{ margin-top: 6px; }
 @media (min-width: 700px){
