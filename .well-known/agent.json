@@ -1,0 +1,36 @@
+{
+  "name": "Algorithmacy Studio",
+  "description": "Helps a person decide how to run AI for a small office or a home, using Studio's published facts, then books a 20-minute call. The decision guide is complete for an agent that cannot browse.",
+  "url": "https://algorithmacy.org/studio",
+  "provider": {
+    "organization": "Algorithmacy",
+    "url": "https://algorithmacy.org",
+    "email": "topanga@algorithmacy.org"
+  },
+  "capabilities": [
+    "compare three ways to run AI",
+    "size an on-premise computer",
+    "explain the first 10 free labor offer",
+    "build a prefilled booking link",
+    "book a discovery call through the onboarding MCP"
+  ],
+  "endpoints": {
+    "facts": "https://algorithmacy.org/studio/facts.json",
+    "harness": "https://algorithmacy.org/studio/llm-harness.md",
+    "prompt": "https://algorithmacy.org/studio/prompt.txt",
+    "llms": "https://algorithmacy.org/llms.txt",
+    "llmsFull": "https://algorithmacy.org/llms-full.txt",
+    "mcp": "https://algorithmacy.org/api/studio-mcp",
+    "onboardingMcp": "https://algorithmacy.org/api/onboarding-mcp",
+    "book": "https://algorithmacy.org/book"
+  },
+  "authentication": {
+    "publicFiles": "none",
+    "onboardingMcp": "none",
+    "studioMcp": "The person signs in. The connector cannot charge a card."
+  },
+  "booking": {
+    "human": "https://algorithmacy.org/book",
+    "prefillParameters": ["setting", "org", "software", "users", "offer", "priority", "tier", "summary", "name", "email", "notes"]
+  }
+}

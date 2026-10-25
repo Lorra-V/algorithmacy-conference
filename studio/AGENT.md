@@ -18,6 +18,30 @@ Someone at the office or the home approves a new kind of message before it goes 
 
 The conference on this site is a separate program. Do not use `https://algorithmacy.org/api/mcp` for Studio. That connector submits papers.
 
+## Decision guide
+
+A person choosing how to run AI, and any agent helping them, should read these before booking. The harness is complete for a tool that cannot browse. The JSON is the same facts in a structured file.
+
+```
+https://algorithmacy.org/studio/llm-harness.md
+https://algorithmacy.org/studio/facts.json
+https://algorithmacy.org/llms-full.txt
+```
+
+Three ways:
+
+1. Platform AI add-ons. Their fee, ongoing. One feature inside software the office already uses.
+2. Cloud AI plus connectors. Per seat or per token. Prompts leave the building. A medical or dental office has third-party AI vendor HIPAA exposure and needs a BAA where one is offered.
+3. Algorithmacy Studio on-premise. A computer the client owns, an open-weight model, and labor to install and maintain. Retail hardware is about $2,000 to $9,500, with no markup. First 10: free labor and free maintenance for life, equipment not included, continued endorsement and testimonial, restrictions apply. After that, about $5,000 to set up and $1,000 a month.
+
+A booking link can carry the answers. Parameters are listed in facts.json. Example:
+
+```
+https://algorithmacy.org/book?setting=office&org=Smith+Dental&software=Dentrix&users=12&offer=first-10&summary=Keep+charts+on+the+office+computer
+```
+
+If the person has one user doing light public drafting, say that a platform add-on or a cloud chat tool is the better fit. Do not invent a price.
+
 ## If you speak MCP
 
 Connect to this URL. No login and no key.

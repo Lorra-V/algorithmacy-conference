@@ -1,0 +1,30 @@
+# Algorithmacy
+
+> Algorithmacy is two programs on one site. The conference studies algorithmacy, the competency of coordinating with another person through an algorithmic third party, in Port of Spain, Trinidad and Tobago, 28 to 31 October 2026. Algorithmacy Studio installs a local model on a computer a small office or a home owns, and maintains it.
+
+Studio's decision guide works for an AI tool that can fetch URLs and for one that cannot. The copied prompt and the files below carry the same facts: three ways to run AI, hardware tiers, the first 10 free-labor offer, and a booking link the tool can fill in.
+
+## Studio
+
+- [Studio](https://algorithmacy.org/studio): the offer for a small office or a home. A local model on a computer the client owns.
+- [LLM decision harness](https://algorithmacy.org/studio/llm-harness.md): the full prompt. An AI tool with no web access can run the decision from this file alone.
+- [Plain prompt](https://algorithmacy.org/studio/prompt.txt): the same harness as plain text.
+- [Facts JSON](https://algorithmacy.org/studio/facts.json): profile, 3-way comparison, hardware tiers, pricing, the first 10 offer, HIPAA boundaries, engineers, MCP endpoints, and the /book query parameters.
+- [Full text](https://algorithmacy.org/llms-full.txt): conference reference plus the Studio offering and the full decision harness.
+- [Book a call](https://algorithmacy.org/book): a 20-minute call. Query parameters such as setting, org, software, users, offer, summary, name, email, and notes prefill the form.
+- [Studio MCP](https://algorithmacy.org/api/studio-mcp): signed-in connector for an office that already has an account. It cannot charge a card.
+- [Onboarding MCP](https://algorithmacy.org/api/onboarding-mcp): no key. Books a discovery call or explains the offer. A call is not an account.
+- [Agent card](https://algorithmacy.org/.well-known/agent.json): discovery card for the public files, the MCP endpoints, and booking.
+
+## Conference
+
+- [Home](https://algorithmacy.org/): program, keynotes, and the five tracks. Port of Spain, 28 to 31 October 2026.
+- [Submit a paper](https://algorithmacy.org/submit): web form, or the conference MCP, or a GitHub pull request. The human author confirms by email before a pull request opens.
+- [Conference MCP](https://algorithmacy.org/api/mcp): paper intake only. Do not use it for Studio.
+- [Logistics](https://algorithmacy.org/logistics): venue, travel, visas, registration.
+- [Repository](https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference): submissions and open reviews live here as pull requests.
+
+## Contact
+
+- Studio: topanga@algorithmacy.org
+- Conference: Roger Hunt, rhunt@bentley.edu

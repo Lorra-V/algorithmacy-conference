@@ -1,4 +1,69 @@
 (function () {
+  var copyBtn = document.getElementById("copy-studio-prompt");
+  var copyStatus = document.getElementById("copy-studio-status");
+  var copiedLabel = "Copied. Paste it into Claude, ChatGPT, Grok, Gemini, or any local model.";
+  if (copyBtn) {
+    copyBtn.addEventListener("click", function () {
+      var previous = copyBtn.textContent;
+      copyBtn.disabled = true;
+      loadHarness().then(function (text) {
+        return writeClipboard(text);
+      }).then(function () {
+        copyBtn.classList.add("is-copied");
+        copyBtn.textContent = copiedLabel;
+        if (copyStatus) copyStatus.textContent = copiedLabel;
+      }).catch(function () {
+        copyBtn.textContent = previous;
+        copyBtn.classList.remove("is-copied");
+        if (copyStatus) copyStatus.textContent = "The copy did not go through. Open the raw prompt and copy it from that page.";
+      }).then(function () {
+        copyBtn.disabled = false;
+      });
+    });
+  }
+
+  function loadHarness() {
+    return fetch("/studio/llm-harness.md", { headers: { Accept: "text/markdown, text/plain, */*" } }).then(function (res) {
+      if (!res.ok) throw new Error("missing");
+      return res.text();
+    });
+  }
+
+  function writeClipboard(text) {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      return navigator.clipboard.writeText(text).catch(function () {
+        return writeClipboardFallback(text);
+      });
+    }
+    return writeClipboardFallback(text);
+  }
+
+  function writeClipboardFallback(text) {
+    return new Promise(function (resolve, reject) {
+      var area = document.createElement("textarea");
+      area.value = text;
+      area.setAttribute("readonly", "");
+      area.style.position = "fixed";
+      area.style.top = "0";
+      area.style.left = "0";
+      area.style.width = "1px";
+      area.style.height = "1px";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.focus();
+      area.select();
+      try {
+        var ok = document.execCommand("copy");
+        document.body.removeChild(area);
+        if (ok) resolve();
+        else reject(new Error("copy failed"));
+      } catch (err) {
+        document.body.removeChild(area);
+        reject(err);
+      }
+    });
+  }
+
   var form = document.getElementById("desk-form");
   var line = document.getElementById("desk-line");
   var messageInput = document.getElementById("desk-message");

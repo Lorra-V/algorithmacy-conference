@@ -1,0 +1,16 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "Algorithmacy Studio",
+  "name_for_model": "algorithmacy_studio",
+  "description_for_human": "Decide how to set up AI for a small office or a home, then book a 20-minute call.",
+  "description_for_model": "Read https://algorithmacy.org/studio/facts.json and https://algorithmacy.org/studio/llm-harness.md. Compare the three ways to run AI. If you cannot fetch URLs, the harness file already contains the facts. Build a prefilled link to https://algorithmacy.org/book using setting, org, software, users, offer, summary, name, email, and notes. Do not invent prices. https://algorithmacy.org/api/studio-mcp is for an existing office and cannot charge a card. https://algorithmacy.org/api/mcp is the conference paper intake, not Studio.",
+  "auth": { "type": "none" },
+  "api": {
+    "type": "openapi",
+    "url": "https://algorithmacy.org/.well-known/openapi.json",
+    "is_user_authenticated": false
+  },
+  "logo_url": "https://algorithmacy.org/favicon-32.png",
+  "contact_email": "topanga@algorithmacy.org",
+  "legal_info_url": "https://algorithmacy.org/terms"
+}

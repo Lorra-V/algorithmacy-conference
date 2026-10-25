@@ -6,6 +6,8 @@
 <title>Algorithmacy Studio. A local model on a computer you own.</title>
 <meta name="description" content="The first 10 home and office installs: free labor to install and maintain. Equipment not included. Continued endorsement and testimonial. Restrictions apply. Then $5,000 and $1,000 a month." />
 <link rel="canonical" href="https://algorithmacy.org/studio" />
+<link rel="alternate" type="text/markdown" href="/studio/llm-harness.md" title="Algorithmacy Studio LLM Decision Harness">
+<link rel="alternate" type="application/json" href="/studio/facts.json" title="Algorithmacy Studio Facts JSON">
 <meta name="theme-color" content="#FBFBF9" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="Algorithmacy" />
@@ -30,49 +32,96 @@
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "Service",
-  "name": "Algorithmacy Studio",
-  "serviceType": "Local AI installation and maintenance for small offices and homes",
-  "url": "https://algorithmacy.org/studio",
-  "description": "We place a computer in a small office or a home, install a local model, set up the daily jobs, and maintain it. The first 10 home and office installs: free covers our labor for the installation and ongoing maintenance. It does not include the computer or equipment. Free maintenance for life is in exchange for continued endorsement and testimonial. Restrictions apply. After that, $5,000 to set up and $1,000 a month.",
-  "provider": {
-    "@type": "Organization",
-    "name": "Algorithmacy",
-    "email": "topanga@algorithmacy.org",
-    "url": "https://algorithmacy.org/studio"
-  },
-  "areaServed": "US",
-  "audience": {
-    "@type": "BusinessAudience",
-    "audienceType": "Small offices of about 5 to 50 people, and homes"
-  },
-  "offers": [
+  "@graph": [
     {
-      "@type": "Offer",
-      "name": "First 10 setup and maintenance",
-      "price": "0",
-      "priceCurrency": "USD",
-      "description": "The first 10 home and office installs. Free covers our labor for the installation and ongoing maintenance. It does not include the computer or equipment. You supply your own computer, or you buy it at the store price. Free maintenance for life is in exchange for your continued endorsement and testimonial. Restrictions apply. Free covers setup and maintenance labor, not hardware or third-party bills, and continues for as long as the endorsement stays up and within the agreed scope of jobs."
+      "@type": ["Organization", "ProfessionalService"],
+      "@id": "https://algorithmacy.org/studio#organization",
+      "name": "Algorithmacy Studio",
+      "url": "https://algorithmacy.org/studio",
+      "email": "topanga@algorithmacy.org",
+      "parentOrganization": { "@type": "Organization", "name": "Algorithmacy", "url": "https://algorithmacy.org/" },
+      "areaServed": "US",
+      "description": "We place a computer in a small office or a home, install a local model, set up the daily jobs, and maintain it."
     },
     {
-      "@type": "Offer",
-      "name": "Onboarding",
-      "price": "5000",
-      "priceCurrency": "USD",
-      "description": "After the first 10: install the computer, the local model, and the jobs. A given job can cost more or less."
+      "@type": "Service",
+      "@id": "https://algorithmacy.org/studio#service",
+      "name": "Algorithmacy Studio",
+      "serviceType": "Local AI installation and maintenance for small offices and homes",
+      "url": "https://algorithmacy.org/studio",
+      "provider": { "@id": "https://algorithmacy.org/studio#organization" },
+      "description": "We place a computer in a small office or a home, install a local model, set up the daily jobs, and maintain it. The first 10 home and office installs: free covers our labor for the installation and ongoing maintenance. It does not include the computer or equipment. Free maintenance for life is in exchange for continued endorsement and testimonial. Restrictions apply. After that, $5,000 to set up and $1,000 a month.",
+      "areaServed": "US",
+      "audience": {
+        "@type": "BusinessAudience",
+        "audienceType": "Small offices of about 5 to 50 people, and homes"
+      },
+      "hasOfferCatalog": { "@id": "https://algorithmacy.org/studio#offers" }
     },
     {
-      "@type": "Offer",
-      "name": "Maintenance",
-      "price": "1000",
-      "priceCurrency": "USD",
-      "description": "After the first 10: monthly maintenance of the local model and the jobs, after a day 30 check-in.",
-      "priceSpecification": {
-        "@type": "UnitPriceSpecification",
-        "price": "1000",
-        "priceCurrency": "USD",
-        "unitText": "MONTH"
-      }
+      "@type": "OfferCatalog",
+      "@id": "https://algorithmacy.org/studio#offers",
+      "name": "Algorithmacy Studio installation and maintenance",
+      "itemListElement": [
+        {
+          "@type": "Offer",
+          "name": "First 10 installations: free labor and free maintenance for life",
+          "price": "0",
+          "priceCurrency": "USD",
+          "url": "https://algorithmacy.org/studio",
+          "description": "The first 10 home and office installs. Free covers our labor for the installation and ongoing maintenance. It does not include the computer or equipment. You supply your own computer, or you buy it at the store price. Free maintenance for life is in exchange for your continued endorsement and testimonial. Restrictions apply."
+        },
+        {
+          "@type": "Offer",
+          "name": "Installation and integration setup",
+          "price": "5000",
+          "priceCurrency": "USD",
+          "description": "After the first 10: about $5,000 one-time to install the computer, the local model, and the jobs. Scoped before any work begins. A given job can cost more or less."
+        },
+        {
+          "@type": "Offer",
+          "name": "Ongoing maintenance",
+          "price": "1000",
+          "priceCurrency": "USD",
+          "description": "After the first 10: about $1,000 a month to maintain the local model and the jobs, after a day 30 check-in.",
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": "1000",
+            "priceCurrency": "USD",
+            "unitText": "MONTH"
+          }
+        }
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://algorithmacy.org/studio#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What are the three ways to run AI?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Way 1 is a platform AI add-on inside software you already use, at that vendor's ongoing fee. It fits one narrow feature in that single app. Way 2 is Claude, ChatGPT, or another cloud model with connectors, billed per seat or per token. Prompts go to that vendor, and a medical or dental office needs a Business Associate Agreement where one is offered. Way 3 is Algorithmacy Studio: a computer you own in the office or the home, an open-weight model, and labor to install and maintain it. The first 10 installs are free labor and free maintenance for life, equipment not included. After that, about $5,000 to set up and $1,000 a month."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does a local model make a dental office HIPAA compliant?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Because the model runs on a computer you own, charts are not sent to an outside AI company, so there is no third-party AI-vendor HIPAA exposure and no BAA for the model. The practice still keeps its own physical lock, logins, and HIPAA Security Rule safeguards. Studio does not have a SOC 2 report."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What do the first 10 installs include?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Free covers our labor for the installation and ongoing maintenance. It does not include the computer or equipment. Free maintenance for life is in exchange for your continued endorsement and testimonial. Restrictions apply. After those 10, the guide is $5,000 to set up and $1,000 a month."
+          }
+        }
+      ]
     }
   ]
 }
@@ -94,6 +143,15 @@
   </header>
 
   <main id="main">
+
+  <div class="prompt-bar" id="copy-prompt">
+    <button type="button" class="prompt-copy" id="copy-studio-prompt" aria-describedby="copy-studio-hint">Don’t want to read all this? Click here to copy a prompt and paste into any AI tool you use.</button>
+    <div class="prompt-meta">
+      <p class="prompt-hint" id="copy-studio-hint">It works in Claude, ChatGPT, Grok, Gemini, or any local model, including one with no web access.</p>
+      <p class="prompt-status" id="copy-studio-status" role="status" aria-live="polite"></p>
+      <a href="/studio/llm-harness.md">View / download raw prompt</a>
+    </div>
+  </div>
 
   <section class="lead" aria-labelledby="lead-title">
     <div>

@@ -1,3 +1,5 @@
+import { bookingPrefill } from './book-prefill.mjs';
+
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
     return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -73,21 +75,74 @@ function group(slots, timeZone) {
   return days;
 }
 
+function broughtBox(root) {
+  return root.querySelector('[data-book-brought]');
+}
+
+function readBrought(root) {
+  var box = broughtBox(root);
+  if (!box || box.hidden) return null;
+  function val(name) {
+    var el = box.querySelector('[name="' + name + '"]');
+    return el ? String(el.value || '').trim() : '';
+  }
+  return {
+    name: val('name'),
+    email: val('email'),
+    business: val('business'),
+    note: val('note'),
+  };
+}
+
+function paintBrought(el, brought) {
+  if (!brought || !brought.any) {
+    el.hidden = true;
+    el.innerHTML = '';
+    return;
+  }
+  var facts = [];
+  if (brought.setting) facts.push('<li><b>Setting.</b> ' + esc(brought.setting === 'home' ? 'Home or household' : brought.setting === 'office' ? 'Office' : brought.setting) + '</li>');
+  if (brought.software) facts.push('<li><b>Software.</b> ' + esc(brought.software) + '</li>');
+  if (brought.users) facts.push('<li><b>Daily users.</b> ' + esc(brought.users) + '</li>');
+  if (brought.offer) facts.push('<li><b>Offer.</b> ' + esc(brought.offer === 'first-10' ? 'First 10 free labor and free maintenance for life' : brought.offer === 'standard' ? 'Standard guideline pricing' : brought.offer) + '</li>');
+  if (brought.priority) facts.push('<li><b>Priority.</b> ' + esc(brought.priority) + '</li>');
+  if (brought.tier) facts.push('<li><b>Hardware tier.</b> ' + esc(brought.tier) + '</li>');
+  el.hidden = false;
+  el.innerHTML =
+    '<div class="book-brought">' +
+    '<h2>Details from your link</h2>' +
+    '<p class="book-note">These came in with the booking link. Change anything that is wrong. They travel with the time you pick.</p>' +
+    (facts.length ? '<ul class="book-facts">' + facts.join('') + '</ul>' : '') +
+    '<form class="book-form" id="book-brought-form">' +
+    '<label>Your name<input name="name" id="prefill-name" autocomplete="name" required></label>' +
+    '<label>Email<input name="email" id="prefill-email" type="email" autocomplete="email" required></label>' +
+    '<label class="wide">The business<input name="business" id="prefill-org" autocomplete="organization" required></label>' +
+    '<label class="wide">What you want to talk about<textarea name="note" id="prefill-note" rows="6"></textarea></label>' +
+    '</form></div>';
+  el.querySelector('[name="name"]').value = brought.name;
+  el.querySelector('[name="email"]').value = brought.email;
+  el.querySelector('[name="business"]').value = brought.org;
+  el.querySelector('[name="note"]').value = brought.note;
+}
+
 function mountBook(root) {
+  var brought = bookingPrefill(window.location.search);
   root.classList.add('book-panel');
-  root.innerHTML = '<p class="book-note">Loading the open times.</p>';
+  root.innerHTML = '<div data-book-brought></div><div data-book-slots><p class="book-note">Loading the open times.</p></div>';
+  paintBrought(broughtBox(root), brought);
+  var slots = root.querySelector('[data-book-slots]');
   fetch('/api/book?type=discovery')
     .then(readJson)
     .then(function (result) {
       if (!result.ok) throw new Error(result.data.error || 'The calendar is not open yet.');
-      draw(root, result.data);
+      draw(slots, result.data, root);
     })
     .catch(function (err) {
-      root.innerHTML = '<p class="book-error">' + esc(err.message || 'The calendar is not open yet. Use the form, or write to topanga@algorithmacy.org.') + '</p>';
+      slots.innerHTML = '<p class="book-error">' + esc(err.message || 'The calendar is not open yet. Use the form, or write to topanga@algorithmacy.org.') + '</p>';
     });
 }
 
-function draw(root, data) {
+function draw(root, data, panel) {
   var days = group(data.slots || [], data.timeZone);
   if (!days.length) {
     root.innerHTML = '<p class="book-note">No open times in the next two weeks. Write to topanga@algorithmacy.org.</p>';
@@ -141,16 +196,24 @@ function draw(root, data) {
       formSlot.innerHTML = '<p class="book-note">The call is 20 minutes.</p>';
       return;
     }
-    formSlot.innerHTML =
-      '<form class="book-form">' +
-      '<label>Your name<input name="name" autocomplete="name" required></label>' +
-      '<label>Email<input name="email" type="email" autocomplete="email" required></label>' +
-      '<label class="wide">The business<input name="business" autocomplete="organization" required></label>' +
-      '<label class="wide">What you want to talk about<input name="note" placeholder="Intake, follow-ups, chasing documents"></label>' +
-      '<p class="book-hp" aria-hidden="true"><label>Leave empty<input name="website" tabindex="-1" autocomplete="off"></label></p>' +
-      '<p class="book-error" hidden></p>' +
-      '<button type="submit">Book ' + esc(dayLabel(picked.start, data.timeZone)) + ' at ' + esc(timeLabel(picked.start, data.timeZone)) + ' ' + esc(zoneLabel(picked.start, data.timeZone)) + '</button>' +
-      '</form>';
+    var carried = readBrought(panel || root);
+    var whenLabel = 'Book ' + esc(dayLabel(picked.start, data.timeZone)) + ' at ' + esc(timeLabel(picked.start, data.timeZone)) + ' ' + esc(zoneLabel(picked.start, data.timeZone));
+    formSlot.innerHTML = carried
+      ? '<form class="book-form">' +
+        '<p class="book-note">The call uses the name, email, business, and note from your link. Edit those above if they are wrong.</p>' +
+        '<p class="book-hp" aria-hidden="true"><label>Leave empty<input name="website" tabindex="-1" autocomplete="off"></label></p>' +
+        '<p class="book-error" hidden></p>' +
+        '<button type="submit">' + whenLabel + '</button>' +
+        '</form>'
+      : '<form class="book-form">' +
+        '<label>Your name<input name="name" autocomplete="name" required></label>' +
+        '<label>Email<input name="email" type="email" autocomplete="email" required></label>' +
+        '<label class="wide">The business<input name="business" autocomplete="organization" required></label>' +
+        '<label class="wide">What you want to talk about<input name="note" placeholder="Intake, follow-ups, chasing documents"></label>' +
+        '<p class="book-hp" aria-hidden="true"><label>Leave empty<input name="website" tabindex="-1" autocomplete="off"></label></p>' +
+        '<p class="book-error" hidden></p>' +
+        '<button type="submit">' + whenLabel + '</button>' +
+        '</form>';
     var form = formSlot.querySelector('form');
     form.addEventListener('submit', function (event) {
       event.preventDefault();
@@ -159,14 +222,21 @@ function draw(root, data) {
       var button = form.querySelector('button');
       button.disabled = true;
       var fd = new FormData(form);
+      var fromLink = readBrought(panel || root);
+      if (fromLink && (!fromLink.name || !fromLink.email || !fromLink.business)) {
+        button.disabled = false;
+        err.hidden = false;
+        err.textContent = 'Add your name, email, and the business in the details from your link.';
+        return;
+      }
       post({
         type: 'discovery',
         start: picked.start,
         holdToken: hold || '',
-        name: fd.get('name'),
-        email: fd.get('email'),
-        business: fd.get('business'),
-        note: fd.get('note'),
+        name: (fromLink && fromLink.name) || fd.get('name'),
+        email: (fromLink && fromLink.email) || fd.get('email'),
+        business: (fromLink && fromLink.business) || fd.get('business'),
+        note: (fromLink && fromLink.note) || fd.get('note'),
         website: fd.get('website') || '',
       }).then(function (body) {
         var when = body.meeting && body.meeting.when ? body.meeting.when : 'the time you picked';

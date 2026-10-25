@@ -16,6 +16,87 @@
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:image" content="https://algorithmacy.org/images/social-share-2026.png" />
 <link rel="alternate" type="text/plain" href="/llms.txt" title="LLM-friendly summary" />
+<link rel="alternate" type="text/markdown" href="/studio/llm-harness.md" title="Algorithmacy Studio LLM Decision Harness">
+<link rel="alternate" type="application/json" href="/studio/facts.json" title="Algorithmacy Studio Facts JSON">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": ["Organization", "ProfessionalService"],
+      "@id": "https://algorithmacy.org/#studio",
+      "name": "Algorithmacy Studio",
+      "url": "https://algorithmacy.org/studio",
+      "email": "topanga@algorithmacy.org",
+      "parentOrganization": { "@type": "Organization", "name": "Algorithmacy", "url": "https://algorithmacy.org/" },
+      "description": "Local AI installation and maintenance for small offices and homes. A computer the client owns, an open-weight model, and a named engineer."
+    },
+    {
+      "@type": "Service",
+      "name": "Algorithmacy Studio on-premise AI",
+      "serviceType": "Local AI installation and maintenance for small offices and homes",
+      "url": "https://algorithmacy.org/studio",
+      "provider": { "@id": "https://algorithmacy.org/#studio" },
+      "hasOfferCatalog": { "@id": "https://algorithmacy.org/#studio-offers" }
+    },
+    {
+      "@type": "OfferCatalog",
+      "@id": "https://algorithmacy.org/#studio-offers",
+      "name": "Algorithmacy Studio installation and maintenance",
+      "itemListElement": [
+        {
+          "@type": "Offer",
+          "name": "First 10 installations: free labor and free maintenance for life",
+          "price": "0",
+          "priceCurrency": "USD",
+          "url": "https://algorithmacy.org/studio",
+          "description": "Free covers labor to install and to maintain, in exchange for continued endorsement and a public testimonial. Equipment is not included. Restrictions apply."
+        },
+        {
+          "@type": "Offer",
+          "name": "Installation and integration setup",
+          "price": "5000",
+          "priceCurrency": "USD",
+          "description": "After the first 10, about $5,000 one-time, scoped before any work begins."
+        },
+        {
+          "@type": "Offer",
+          "name": "Ongoing maintenance",
+          "price": "1000",
+          "priceCurrency": "USD",
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": "1000",
+            "priceCurrency": "USD",
+            "unitText": "MONTH"
+          }
+        }
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What are the three ways to run AI?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Way 1 is a platform AI add-on inside software you already use. Way 2 is a cloud model such as Claude or ChatGPT, billed per seat or per token, with prompts on that vendor's servers. Way 3 is Algorithmacy Studio: a computer you own, a local model, and labor to install and maintain it. The full guide is at https://algorithmacy.org/studio/llm-harness.md."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does a local model make a dental office HIPAA compliant?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Charts are not sent to an outside AI company, so there is no third-party AI-vendor HIPAA exposure and no BAA for the model. The practice still keeps its own locks, logins, and HIPAA Security Rule safeguards."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
 <link rel="stylesheet" href="design-system/colors_and_type.css" />
 <link rel="stylesheet" href="/assets/css/submit-modal.css" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
