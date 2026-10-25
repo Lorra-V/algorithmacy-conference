@@ -12,7 +12,7 @@ Algorithmacy Studio installs a local model on a computer the client owns, in a s
 
 Offices are about 5 to 50 people. Dental practices and clinics first, then law firms, CPA and real estate offices, and other owner-run businesses. Homes are in scope too.
 
-The first 10 offices or homes: setup is free, and maintenance is free for life, for an honest testimonial once it is running. The client supplies the computer or buys it at the store price. After those 10, the guide is $5,000 to set up and $1,000 a month. A given job can cost more or less. For a normal small office or a home, that guide covers it.
+The first 10 home and office installs: free covers our labor for the installation and ongoing maintenance. It does not include the computer or equipment. The client supplies their own computer, or buys it at the store price. Free maintenance for life is in exchange for their continued endorsement and testimonial. Restrictions apply. Free covers setup and maintenance labor, not hardware or third-party bills, and free maintenance continues for as long as the endorsement stays up and within the agreed scope of jobs. After those 10, the guide is $5,000 to set up and $1,000 a month. A given job can cost more or less. For a normal small office or a home, that guide covers it.
 
 Someone at the office or the home approves a new kind of message before it goes out. The model runs on their machine. A dentist still does the clinical work. A lawyer still does the legal work. A call is not a contract.
 

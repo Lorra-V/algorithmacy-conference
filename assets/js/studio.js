@@ -54,7 +54,7 @@
     line.textContent =
       officeLabel() +
       (message ? ". Work: " + message + "." : ".") +
-      " The first 10: setup and maintenance free, for a testimonial. After that, $5,000 to set up, then $1,000 a month.";
+      " The first 10 home and office installs: free labor to install and maintain. Equipment not included. Continued endorsement and testimonial. Restrictions apply. After that, $5,000 to set up, then $1,000 a month.";
   }
 
   function applyIntent() {
@@ -168,7 +168,7 @@
       return;
     }
     var month = people * hours * rate * 52 / 12;
-    var line = "The chores are about " + money(month) + " a month of staff time. After the first 10, Studio is $1,000 a month after the $5,000 setup. The first 10 pay neither, for a testimonial. The computer is separate, at the store price, or one you already have.";
+    var line = "The chores are about " + money(month) + " a month of staff time. After the first 10, Studio is $1,000 a month after the $5,000 setup. The first 10: free labor to install and maintain, equipment not included, for your continued endorsement and testimonial. Restrictions apply.";
     if (month < 1000) {
       line += " That is under the monthly fee, so the reason to look at this is the time, not a cash saving.";
     }
