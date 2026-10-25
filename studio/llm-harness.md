@@ -163,7 +163,7 @@ Named people do the install and the maintenance. Roger Hunt convenes the Global 
 
 - Public facts: https://algorithmacy.org/studio/facts.json
 - This harness: https://algorithmacy.org/studio/llm-harness.md
-- The same text as a plain file: https://algorithmacy.org/studio/prompt.txt
+- Short prompt copied from the Studio page: https://algorithmacy.org/studio/prompt.txt
 - Site indexes: https://algorithmacy.org/llms.txt and https://algorithmacy.org/llms-full.txt
 - Agent card: https://algorithmacy.org/.well-known/agent.json
 - Onboarding MCP, no key: https://algorithmacy.org/api/onboarding-mcp. Tools: studio_offer, list_discovery_times, book_discovery, write_studio, engineer_application. A booked call is not an account.

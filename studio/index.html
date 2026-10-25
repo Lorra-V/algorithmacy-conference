@@ -145,12 +145,10 @@
   <main id="main">
 
   <div class="prompt-bar" id="copy-prompt">
-    <button type="button" class="prompt-copy" id="copy-studio-prompt" aria-describedby="copy-studio-hint">Don’t want to read all this? Click here to copy a prompt and paste into any AI tool you use.</button>
-    <div class="prompt-meta">
-      <p class="prompt-hint" id="copy-studio-hint">It works in Claude, ChatGPT, Grok, Gemini, or any local model, including one with no web access.</p>
-      <p class="prompt-status" id="copy-studio-status" role="status" aria-live="polite"></p>
-      <a href="/studio/llm-harness.md">View / download raw prompt</a>
-    </div>
+    <button type="button" class="prompt-copy" id="copy-studio-prompt" aria-live="polite">
+      <span class="prompt-idle">Don’t want to read all this? Click here to copy a prompt and paste into any AI tool you use.</span>
+      <span class="prompt-done" aria-hidden="true">Copied. Paste it into Claude, ChatGPT, Grok, Gemini, or any AI tool.</span>
+    </button>
   </div>
 
   <section class="lead" aria-labelledby="lead-title">

@@ -8,7 +8,7 @@ Studio's decision guide works for an AI tool that can fetch URLs and for one tha
 
 - [Studio](https://algorithmacy.org/studio): the offer for a small office or a home. A local model on a computer the client owns.
 - [LLM decision harness](https://algorithmacy.org/studio/llm-harness.md): the full prompt. An AI tool with no web access can run the decision from this file alone.
-- [Plain prompt](https://algorithmacy.org/studio/prompt.txt): the same harness as plain text.
+- [Copy prompt](https://algorithmacy.org/studio/prompt.txt): the short prompt the Studio page copies. It points an AI tool at the harness, the facts, and the GitHub repo.
 - [Facts JSON](https://algorithmacy.org/studio/facts.json): profile, 3-way comparison, hardware tiers, pricing, the first 10 offer, HIPAA boundaries, engineers, MCP endpoints, and the /book query parameters.
 - [Full text](https://algorithmacy.org/llms-full.txt): conference reference plus the Studio offering and the full decision harness.
 - [Book a call](https://algorithmacy.org/book): a 20-minute call. Query parameters such as setting, org, software, users, offer, summary, name, email, and notes prefill the form.
