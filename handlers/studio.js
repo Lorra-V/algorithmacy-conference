@@ -23,6 +23,10 @@ const OFFICES = [
   'real estate office',
   'CPA firm',
   'owner-run office',
+  'dental practice or clinic',
+  'home or household',
+  'CPA or real estate office',
+  'owner-run business',
 ];
 
 const MIN_FILL_MS = 3000;
