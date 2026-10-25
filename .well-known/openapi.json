@@ -34,7 +34,7 @@
     "/studio/prompt.txt": {
       "get": {
         "operationId": "getStudioPrompt",
-        "summary": "Same harness as plain text.",
+        "summary": "Short prompt the Studio page copies. It points at the full harness and facts.",
         "responses": {
           "200": {
             "description": "Plain text prompt",

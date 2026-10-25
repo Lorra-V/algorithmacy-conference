@@ -13,18 +13,52 @@ const BUTTON = 'Don’t want to read all this? Click here to copy a prompt and p
 
 test('the studio page leads with the copy-prompt button', () => {
   const html = read('studio/index.html');
+  const js = read('assets/js/studio.js');
   assert.ok(html.includes(BUTTON), 'exact button copy is missing');
+  assert.ok(html.includes('Copied. Paste it into Claude, ChatGPT, Grok, Gemini, or any AI tool.'));
   assert.match(html, /id="copy-studio-prompt"/);
-  assert.match(html, /href="\/studio\/llm-harness\.md"/);
+  assert.equal(html.includes('prompt-hint'), false);
+  assert.equal(html.includes('View / download raw prompt'), false);
+  assert.equal(html.includes('The copy did not go through'), false);
   assert.equal(html.includes('—'), false);
   assert.equal(html.includes('&mdash;'), false);
   assert.equal(html.includes('\u2014'), false);
+  const copyFn = js.slice(0, js.indexOf('var form = document.getElementById("desk-form")'));
+  assert.doesNotMatch(copyFn, /fetch\s*\(/);
+  assert.match(copyFn, /execCommand\("copy"\)/);
+  assert.match(copyFn, /writeText\(STUDIO_PROMPT\)/);
+  assert.equal(copyFn.includes('The copy did not go through'), false);
+});
+
+test('the copied prompt is short and matches prompt.txt', () => {
+  const js = read('assets/js/studio.js');
+  const start = js.indexOf('var STUDIO_PROMPT = [');
+  const end = js.indexOf('].join("\\n")', start);
+  assert.ok(start > -1 && end > start);
+  const body = js.slice(start, end);
+  const lines = [...body.matchAll(/"((?:\\.|[^"\\])*)"/g)].map((match) => JSON.parse('"' + match[1] + '"'));
+  const prompt = lines.join('\n');
+  const file = read('studio/prompt.txt').replace(/\n$/, '');
+  assert.equal(prompt, file);
+  assert.ok(lines.length >= 8 && lines.length <= 12, 'line count ' + lines.length);
+  assert.match(prompt, /https:\/\/algorithmacy\.org\/studio\/llm-harness\.md/);
+  assert.match(prompt, /https:\/\/algorithmacy\.org\/studio\/facts\.json/);
+  assert.match(prompt, /https:\/\/algorithmacy\.org\/llms-full\.txt/);
+  assert.match(prompt, /https:\/\/algorithmacy\.org\/studio\n/);
+  assert.match(prompt, /https:\/\/github\.com\/rogerSuperBuilderAlpha\/algorithmacy-conference/);
+  assert.match(prompt, /studio\/index\.html/);
+  assert.match(prompt, /https:\/\/algorithmacy\.org\/book/);
+  assert.match(prompt, /water heater/);
+  assert.match(prompt, /first 10/i);
+  assert.equal(prompt.includes('\u2014'), false);
+  assert.ok(prompt.length < 2000);
 });
 
 test('discovery files exist and parse', () => {
   const harness = read('studio/llm-harness.md');
   const prompt = read('studio/prompt.txt');
-  assert.equal(prompt, harness);
+  assert.ok(harness.length > prompt.length);
+  assert.match(harness, /Short prompt copied from the Studio page/);
   assert.equal(harness.includes('\u2014'), false);
   assert.equal(harness.includes('&mdash;'), false);
   assert.match(harness, /https:\/\/algorithmacy\.org\/studio\/facts\.json/);

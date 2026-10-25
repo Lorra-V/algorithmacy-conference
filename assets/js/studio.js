@@ -1,67 +1,69 @@
 (function () {
+  var STUDIO_PROMPT = [
+    "You are helping me decide how to set up AI for my business, practice, or home.",
+    "Read the Algorithmacy Studio decision harness and facts, then guide me in plain English.",
+    "",
+    "Live site files:",
+    "https://algorithmacy.org/studio/llm-harness.md",
+    "https://algorithmacy.org/studio/facts.json",
+    "https://algorithmacy.org/llms-full.txt",
+    "https://algorithmacy.org/studio",
+    "",
+    "Public GitHub repo https://github.com/rogerSuperBuilderAlpha/algorithmacy-conference, files studio/llm-harness.md, studio/facts.json, and studio/index.html.",
+    "",
+    "Follow the harness. Ask 2 or 3 short questions about the office or home, the daily software, and the team size. Compare the 3 ways to run AI: (1) platform AI add-ons at their ongoing fee, (2) cloud AI such as Claude or ChatGPT with connectors, billed per seat or token, (3) Algorithmacy Studio's on-premise water heater, a local AI computer with unlimited local use, no third-party AI vendor HIPAA exposure, and free labor plus free maintenance for life on the first 10 installs (equipment not included). Calculate the Year-1 and 3-year cost comparison, then build a prefilled booking link to https://algorithmacy.org/book."
+  ].join("\n");
+
   var copyBtn = document.getElementById("copy-studio-prompt");
-  var copyStatus = document.getElementById("copy-studio-status");
-  var copiedLabel = "Copied. Paste it into Claude, ChatGPT, Grok, Gemini, or any local model.";
+  var revertTimer = 0;
   if (copyBtn) {
     copyBtn.addEventListener("click", function () {
-      var previous = copyBtn.textContent;
-      copyBtn.disabled = true;
-      loadHarness().then(function (text) {
-        return writeClipboard(text);
-      }).then(function () {
-        copyBtn.classList.add("is-copied");
-        copyBtn.textContent = copiedLabel;
-        if (copyStatus) copyStatus.textContent = copiedLabel;
-      }).catch(function () {
-        copyBtn.textContent = previous;
-        copyBtn.classList.remove("is-copied");
-        if (copyStatus) copyStatus.textContent = "The copy did not go through. Open the raw prompt and copy it from that page.";
-      }).then(function () {
-        copyBtn.disabled = false;
-      });
+      copyPromptNow(STUDIO_PROMPT);
+      showCopied();
     });
   }
 
-  function loadHarness() {
-    return fetch("/studio/llm-harness.md", { headers: { Accept: "text/markdown, text/plain, */*" } }).then(function (res) {
-      if (!res.ok) throw new Error("missing");
-      return res.text();
-    });
+  function showCopied() {
+    if (!copyBtn) return;
+    var idle = copyBtn.querySelector(".prompt-idle");
+    var done = copyBtn.querySelector(".prompt-done");
+    copyBtn.classList.add("is-copied");
+    if (idle) idle.setAttribute("aria-hidden", "true");
+    if (done) done.removeAttribute("aria-hidden");
+    window.clearTimeout(revertTimer);
+    revertTimer = window.setTimeout(function () {
+      copyBtn.classList.remove("is-copied");
+      if (idle) idle.removeAttribute("aria-hidden");
+      if (done) done.setAttribute("aria-hidden", "true");
+    }, 4000);
   }
 
-  function writeClipboard(text) {
+  function copyPromptNow(text) {
+    var area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.setAttribute("aria-hidden", "true");
+    area.style.position = "fixed";
+    area.style.top = "0";
+    area.style.left = "0";
+    area.style.width = "1px";
+    area.style.height = "1px";
+    area.style.padding = "0";
+    area.style.border = "none";
+    area.style.outline = "none";
+    area.style.boxShadow = "none";
+    area.style.background = "transparent";
+    area.style.fontSize = "16px";
+    document.body.appendChild(area);
+    area.focus();
+    area.select();
+    area.setSelectionRange(0, area.value.length);
+    try { document.execCommand("copy"); } catch (err) { /* clipboard.writeText below still runs on this same tap */ }
+    document.body.removeChild(area);
     if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
-      return navigator.clipboard.writeText(text).catch(function () {
-        return writeClipboardFallback(text);
-      });
+      var pending = navigator.clipboard.writeText(STUDIO_PROMPT);
+      if (pending && typeof pending.catch === "function") pending.catch(function () {});
     }
-    return writeClipboardFallback(text);
-  }
-
-  function writeClipboardFallback(text) {
-    return new Promise(function (resolve, reject) {
-      var area = document.createElement("textarea");
-      area.value = text;
-      area.setAttribute("readonly", "");
-      area.style.position = "fixed";
-      area.style.top = "0";
-      area.style.left = "0";
-      area.style.width = "1px";
-      area.style.height = "1px";
-      area.style.opacity = "0";
-      document.body.appendChild(area);
-      area.focus();
-      area.select();
-      try {
-        var ok = document.execCommand("copy");
-        document.body.removeChild(area);
-        if (ok) resolve();
-        else reject(new Error("copy failed"));
-      } catch (err) {
-        document.body.removeChild(area);
-        reject(err);
-      }
-    });
   }
 
   var form = document.getElementById("desk-form");
