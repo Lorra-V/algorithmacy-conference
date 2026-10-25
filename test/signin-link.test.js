@@ -49,7 +49,7 @@ test('the engineer directory agrees with the published page', () => {
   const lorraine = matchDirectoryGithub('lorra-v');
   assert.equal(lorraine.name, 'Lorraine Villaroel');
   assert.equal(lorraine.github, 'Lorra-V');
-  assert.equal(lorraine.email, '');
+  assert.equal(lorraine.email, 'lorraine@webblyweb.com');
   assert.equal(lorraine.published, true);
   const login = fs.readFileSync(path.join(__dirname, '../components/portal/LoginForm.jsx'), 'utf8');
   assert.match(login, /If you're a Studio engineer and don't get a link, sign in with GitHub or contact/);
@@ -282,7 +282,7 @@ test('magic links follow the published engineer record and skip does not spend t
   assert.equal(saved.length, 1);
   assert.equal(saved[0].name, 'Lorraine Villaroel');
   assert.equal(saved[0].github, 'Lorra-V');
-  assert.equal(saved[0].email, '');
+  assert.equal(saved[0].email, 'lorraine@webblyweb.com');
   assert.deepEqual(attached, [{ id: 'eng-Lorra-V', email: 'lorraine.real@example.com' }]);
 
   portalAuth.callerFromRequest = async () => ({

@@ -200,7 +200,7 @@ a.visually-hidden:focus-visible{
   color: var(--ink-2);
 }
 
-/* The record: an example week, set as the ledger the portal keeps. */
+/* The record: three ways to run the work, in the ledger card. */
 .record{
   border: 1px solid var(--rule);
   border-radius: 6px;
@@ -246,6 +246,10 @@ a.visually-hidden:focus-visible{
 .record td.status{ white-space: nowrap; width: 12rem; }
 .record td.status.waiting{ color: var(--blueback); font-weight: 500; }
 .record td.status.blocked{ color: var(--alert); font-weight: 500; }
+.record tbody tr.is-studio,
+.record tbody tr.is-studio th,
+.record tbody tr.is-studio td{ background: var(--tint); }
+.record tbody tr.is-studio td.status{ color: var(--ink); font-weight: 600; }
 .record-foot{
   padding: 12px 20px 14px;
   border-top: 1px solid var(--rule);
@@ -253,7 +257,7 @@ a.visually-hidden:focus-visible{
   font-size: 0.8125rem;
   color: var(--ink-3);
 }
-/* Narrow record: the time and the status share a line, the entry sits under them. */
+/* Narrow record, and the desktop lead column: the label and the meter share a line, the entry sits under them. */
 @media (max-width: 700px), (min-width: 1100px){
   .record thead{ display: none; }
   .record tbody{ display: block; }
